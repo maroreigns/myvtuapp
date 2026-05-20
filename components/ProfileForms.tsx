@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
 export function ProfileForms({ user }: { user: { fullName: string; phone: string; email: string } }) {
   const router = useRouter();
@@ -12,8 +13,8 @@ export function ProfileForms({ user }: { user: { fullName: string; phone: string
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fullName: String(formData.get("fullName")), phone: String(formData.get("phone")) })
     });
-    const data = await response.json();
-    response.ok ? toast.success("Profile updated") : toast.error(data.error);
+    const { data, error } = await readApiResponse<{ error?: string }>(response);
+    response.ok ? toast.success("Profile updated") : toast.error(data.error || error || "Profile update failed");
     router.refresh();
   }
 
@@ -23,8 +24,8 @@ export function ProfileForms({ user }: { user: { fullName: string; phone: string
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ currentPassword: String(formData.get("currentPassword")), newPassword: String(formData.get("newPassword")) })
     });
-    const data = await response.json();
-    response.ok ? toast.success("Password changed") : toast.error(data.error);
+    const { data, error } = await readApiResponse<{ error?: string }>(response);
+    response.ok ? toast.success("Password changed") : toast.error(data.error || error || "Password change failed");
   }
 
   return (

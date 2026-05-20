@@ -1,3 +1,4 @@
+import { AdminUserStatusButton } from "@/components/AdminUserStatusButton";
 import { AdminWalletForm } from "@/components/AdminWalletForm";
 import { prisma } from "@/lib/prisma";
 
@@ -23,11 +24,19 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: {
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="font-semibold">{user.fullName}</p>
-                <p className="text-sm text-slate-500">{user.email} · {user.phone}</p>
+                <p className="text-sm text-slate-500">{user.email} - {user.phone}</p>
               </div>
-              <p className="font-bold">₦{Number(user.walletBalance).toLocaleString()}</p>
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-2 py-1 text-xs font-semibold ${user.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                  {user.isActive ? "Active" : "Inactive"}
+                </span>
+                <p className="font-bold">NGN {Number(user.walletBalance).toLocaleString()}</p>
+              </div>
             </div>
-            <AdminWalletForm userId={user.id} />
+            <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
+              <AdminWalletForm userId={user.id} />
+              <AdminUserStatusButton userId={user.id} isActive={user.isActive} />
+            </div>
           </div>
         ))}
       </div>

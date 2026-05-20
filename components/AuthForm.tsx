@@ -4,8 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
-export function AuthForm({ mode }: { mode: "login" | "register" }) {
+export function AuthForm({ mode, referralCode = "" }: { mode: "login" | "register"; referralCode?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -17,26 +18,42 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             fullName: String(formData.get("fullName")),
             email: String(formData.get("email")),
             phone: String(formData.get("phone")),
-            password: String(formData.get("password"))
+            password: String(formData.get("password")),
+            referralCode: String(formData.get("referralCode") || "")
           }
         : { email: String(formData.get("email")), password: String(formData.get("password")) };
 
-    const response = await fetch(`/api/auth/${mode}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    const data = await response.json();
-    setLoading(false);
+    try {
+      const response = await fetch(`/api/auth/${mode}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const { data, error } = await readApiResponse<{
+        success?: boolean;
+        message?: string;
+        error?: string;
+        signedIn?: boolean;
+        user?: { role?: string };
+      }>(response);
 
-    if (!response.ok) {
-      toast.error(data.error || "Authentication failed");
-      return;
+      if (!response.ok) {
+        toast.error(data.message || data.error || error || "Authentication failed. Please check your details.");
+        return;
+      }
+
+      toast.success(data.message || (mode === "login" ? "Welcome back" : "Account created. Please verify your email."));
+      if (mode === "register" && !data.signedIn) {
+        router.push("/login");
+      } else {
+        router.push(mode === "login" ? "/dashboard" : data.user?.role === "ADMIN" ? "/admin" : "/dashboard");
+      }
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the server. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    toast.success(mode === "login" ? "Welcome back" : "Account created");
-    router.push(data.user?.role === "ADMIN" ? "/admin" : "/dashboard");
-    router.refresh();
   }
 
   return (
@@ -51,6 +68,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             Phone number
             <input name="phone" required placeholder="08012345678" className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 outline-none focus:border-brand-600" />
           </label>
+          <input name="referralCode" type="hidden" defaultValue={referralCode} />
         </>
       )}
       <label className="block text-sm font-medium text-slate-700">

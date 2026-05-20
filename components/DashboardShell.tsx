@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, CreditCard, Database, Home, LogOut, ReceiptText, Settings, Shield, Users } from "lucide-react";
+import { BarChart3, CreditCard, Database, Home, LogOut, Phone, ReceiptText, Settings, Shield, Users } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
 const userLinks = [
   { href: "/dashboard", label: "Overview", icon: Home },
+  { href: "/dashboard/buy-airtime", label: "Airtime", icon: Phone },
   { href: "/dashboard/buy-data", label: "Buy Data", icon: Database },
   { href: "/dashboard/wallet", label: "Wallet", icon: CreditCard },
   { href: "/dashboard/transactions", label: "Transactions", icon: ReceiptText },
+  { href: "/dashboard/referrals", label: "Referrals", icon: Users },
   { href: "/dashboard/profile", label: "Settings", icon: Settings }
 ];
 
@@ -17,7 +19,9 @@ const adminLinks = [
   { href: "/admin", label: "Dashboard", icon: Shield },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/pricing", label: "Pricing", icon: BarChart3 },
-  { href: "/admin/transactions", label: "Transactions", icon: ReceiptText }
+  { href: "/admin/transactions", label: "Transactions", icon: ReceiptText },
+  { href: "/admin/profit", label: "Profit", icon: BarChart3 },
+  { href: "/admin/recharge-cards", label: "Recharge Cards", icon: CreditCard }
 ];
 
 export function DashboardShell({

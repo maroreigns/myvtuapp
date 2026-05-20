@@ -1,11 +1,21 @@
+import { AdminAirtimePricingForm } from "@/components/AdminAirtimePricingForm";
 import { AdminPlanForm } from "@/components/AdminPlanForm";
 import { prisma } from "@/lib/prisma";
 
 export default async function AdminPricingPage() {
-  const plans = await prisma.dataPlan.findMany({ orderBy: [{ network: "asc" }, { sellingPrice: "asc" }] });
+  const [plans, airtimePricing] = await Promise.all([
+    prisma.dataPlan.findMany({ orderBy: [{ network: "asc" }, { sellingPrice: "asc" }] }),
+    prisma.airtimePricing.findMany({ orderBy: { network: "asc" } })
+  ]);
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold">Pricing</h1>
+      <AdminAirtimePricingForm pricing={airtimePricing.map((item) => ({
+        network: item.network,
+        discountPercent: Number(item.discountPercent),
+        providerCostPercent: Number(item.providerCostPercent),
+        isActive: item.isActive
+      }))} />
       <AdminPlanForm />
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="overflow-x-auto">

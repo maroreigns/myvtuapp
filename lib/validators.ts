@@ -1,4 +1,4 @@
-import { Network, PaymentGateway, TransactionStatus, WalletTransactionType } from "@prisma/client";
+import { Network, PaymentGateway, RechargeCardStatus, TransactionStatus, WalletTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 const phoneRegex = /^(070|080|081|090|091|071)\d{8}$/;
@@ -7,11 +7,12 @@ export const registerSchema = z.object({
   fullName: z.string().min(3).max(80),
   email: z.string().email().toLowerCase(),
   phone: z.string().regex(phoneRegex, "Enter a valid Nigerian phone number"),
-  password: z.string().min(8).max(80)
+  password: z.string().min(8).max(80),
+  referralCode: z.string().optional()
 });
 
 export const loginSchema = z.object({
-  email: z.string().email().toLowerCase(),
+  email: z.string().trim().min(3).toLowerCase(),
   password: z.string().min(1)
 });
 
@@ -36,6 +37,12 @@ export const confirmPaymentSchema = z.object({
 export const purchaseDataSchema = z.object({
   planId: z.string().min(1),
   phoneNumber: z.string().regex(phoneRegex, "Enter a valid Nigerian phone number")
+});
+
+export const purchaseAirtimeSchema = z.object({
+  network: z.nativeEnum(Network),
+  phoneNumber: z.string().regex(phoneRegex, "Enter a valid Nigerian phone number"),
+  amount: z.coerce.number().min(1, "Amount must be greater than 0").max(100000)
 });
 
 export const profileSchema = z.object({
@@ -68,4 +75,31 @@ export const adminWalletAdjustSchema = z.object({
 
 export const transactionStatusSchema = z.object({
   status: z.nativeEnum(TransactionStatus)
+});
+
+export const verifyEmailSchema = z.object({
+  token: z.string().min(20)
+});
+
+export const userStatusSchema = z.object({
+  userId: z.string().min(1),
+  isActive: z.boolean()
+});
+
+export const airtimePricingSchema = z.object({
+  network: z.nativeEnum(Network),
+  discountPercent: z.coerce.number().min(0).max(50),
+  providerCostPercent: z.coerce.number().min(1).max(100),
+  isActive: z.boolean().default(true)
+});
+
+export const rechargeCardBatchSchema = z.object({
+  name: z.string().min(2).max(80),
+  network: z.nativeEnum(Network),
+  denomination: z.coerce.number().min(50).max(100000),
+  cards: z.array(z.object({
+    pin: z.string().min(4).max(40),
+    serialNumber: z.string().min(4).max(80),
+    status: z.nativeEnum(RechargeCardStatus).default(RechargeCardStatus.UNUSED)
+  })).min(1).max(1000)
 });

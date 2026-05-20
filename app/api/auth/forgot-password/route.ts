@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { jsonOk } from "@/lib/http";
+import { jsonOk, readJsonBody } from "@/lib/http";
 import { rateLimit } from "@/lib/rate-limit";
 import { forgotPasswordSchema } from "@/lib/validators";
 
@@ -8,7 +8,8 @@ export async function POST(request: NextRequest) {
     return jsonOk({ message: "If the email exists, reset instructions will be sent." });
   }
 
-  forgotPasswordSchema.safeParse(await request.json());
+  const payload = await readJsonBody(request);
+  if (payload) forgotPasswordSchema.safeParse(payload);
   return jsonOk({
     message: "If the email exists, reset instructions will be sent.",
     mockResetToken: "mock-reset-token-use-real-email-provider-later"

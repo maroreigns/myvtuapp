@@ -85,10 +85,22 @@ export async function requireUser(request?: NextRequest) {
 
   const user = await prisma.user.findUnique({
     where: { id: session.id },
-    select: { id: true, email: true, fullName: true, phone: true, role: true, walletBalance: true, createdAt: true }
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      phone: true,
+      role: true,
+      walletBalance: true,
+      emailVerifiedAt: true,
+      isActive: true,
+      referralCode: true,
+      referralEarnings: true,
+      createdAt: true
+    }
   });
 
-  return user;
+  return user?.isActive ? user : null;
 }
 
 export async function requireAdmin(request?: NextRequest) {

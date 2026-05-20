@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
 export function AdminWalletForm({ userId }: { userId: string }) {
   const router = useRouter();
@@ -16,8 +17,8 @@ export function AdminWalletForm({ userId }: { userId: string }) {
         description: String(formData.get("description"))
       })
     });
-    const data = await response.json();
-    response.ok ? toast.success("Wallet updated") : toast.error(data.error);
+    const { data, error } = await readApiResponse<{ error?: string }>(response);
+    response.ok ? toast.success("Wallet updated") : toast.error(data.error || error || "Wallet update failed");
     router.refresh();
   }
 

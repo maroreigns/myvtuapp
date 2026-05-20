@@ -3,19 +3,25 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
+import { readApiResponse } from "@/lib/client-response";
 
 export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   async function submit(formData: FormData) {
     setLoading(true);
-    const response = await fetch("/api/auth/forgot-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: String(formData.get("email")) })
-    });
-    const data = await response.json();
-    setLoading(false);
-    toast.success(data.message || "Check your email");
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: String(formData.get("email")) })
+      });
+      const { data, error } = await readApiResponse<{ message?: string; error?: string }>(response);
+      response.ok ? toast.success(data.message || "Check your email") : toast.error(data.error || error || "Could not send reset instructions");
+    } catch {
+      toast.error("Could not reach the server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

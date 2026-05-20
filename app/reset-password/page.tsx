@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
 export default function ResetPasswordPage() {
   const [loading, setLoading] = useState(false);
   async function submit(formData: FormData) {
     setLoading(true);
-    const response = await fetch("/api/auth/reset-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: String(formData.get("token")), password: String(formData.get("password")) })
-    });
-    const data = await response.json();
-    setLoading(false);
-    response.ok ? toast.success(data.message) : toast.error(data.error);
+    try {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: String(formData.get("token")), password: String(formData.get("password")) })
+      });
+      const { data, error } = await readApiResponse<{ message?: string; error?: string }>(response);
+      response.ok ? toast.success(data.message || "Password updated") : toast.error(data.error || error || "Could not reset password");
+    } catch {
+      toast.error("Could not reach the server. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

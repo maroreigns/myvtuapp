@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
+import { NETWORKS } from "@/lib/networks";
 
 type Plan = { id: string; network: string; name: string; dataSize: string; validity: string; sellingPrice: number };
 
@@ -17,19 +19,24 @@ export function BuyDataForm({ plans }: { plans: Plan[] }) {
   async function submit(formData: FormData) {
     if (!selected || !confirm(`Buy ${selected.name} for ₦${selected.sellingPrice.toLocaleString()}?`)) return;
     setLoading(true);
-    const response = await fetch("/api/data/purchase", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ planId, phoneNumber: String(formData.get("phoneNumber")) })
-    });
-    const data = await response.json();
-    setLoading(false);
-    if (!response.ok) {
-      toast.error(data.error || "Purchase failed");
-      return;
+    try {
+      const response = await fetch("/api/data/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planId, phoneNumber: String(formData.get("phoneNumber")) })
+      });
+      const { data, error } = await readApiResponse<{ error?: string; transaction?: { status?: string } }>(response);
+      if (!response.ok) {
+        toast.error(data.error || error || "Purchase failed");
+        return;
+      }
+      toast.success(data.transaction?.status === "REFUNDED" ? "Provider failed. Wallet refunded." : "Data purchase successful");
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the server. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    toast.success(data.transaction.status === "REFUNDED" ? "Provider failed. Wallet refunded." : "Data purchase successful");
-    router.refresh();
   }
 
   return (
@@ -45,8 +52,8 @@ export function BuyDataForm({ plans }: { plans: Plan[] }) {
             }}
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"
           >
-            {["MTN", "AIRTEL", "GLO", "NINE_MOBILE"].map((item) => (
-              <option key={item} value={item}>{item === "NINE_MOBILE" ? "9mobile" : item}</option>
+            {NETWORKS.map((item) => (
+              <option key={item.value} value={item.value}>{item.label}</option>
             ))}
           </select>
         </label>

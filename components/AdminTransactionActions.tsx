@@ -2,13 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
 export function AdminTransactionActions({ id }: { id: string }) {
   const router = useRouter();
   async function run(action: string) {
     const response = await fetch(`/api/admin/transactions/${id}?action=${action}`, { method: "POST" });
-    const data = await response.json();
-    response.ok ? toast.success(`Transaction ${action} completed`) : toast.error(data.error);
+    const { data, error } = await readApiResponse<{ error?: string }>(response);
+    response.ok ? toast.success(`Transaction ${action} completed`) : toast.error(data.error || error || `Transaction ${action} failed`);
     router.refresh();
   }
   return (

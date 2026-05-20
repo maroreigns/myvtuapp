@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
 export function AdminPlanForm() {
   const router = useRouter();
@@ -20,8 +21,8 @@ export function AdminPlanForm() {
         isActive: true
       })
     });
-    const data = await response.json();
-    response.ok ? toast.success("Plan added") : toast.error(data.error);
+    const { data, error } = await readApiResponse<{ error?: string }>(response);
+    response.ok ? toast.success("Plan added") : toast.error(data.error || error || "Could not add plan");
     router.refresh();
   }
 

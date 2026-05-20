@@ -3,45 +3,36 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { readApiResponse } from "@/lib/client-response";
 
 export function WalletFundForm() {
   const router = useRouter();
-  const [reference, setReference] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function fund(formData: FormData) {
     setLoading(true);
-    const response = await fetch("/api/wallet/fund", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount: Number(formData.get("amount")), gateway: String(formData.get("gateway")) })
-    });
-    const data = await response.json();
-    setLoading(false);
-    if (!response.ok) {
-      toast.error(data.error || "Could not initialize payment");
-      return;
+    try {
+      const response = await fetch("/api/wallet/fund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: Number(formData.get("amount")), gateway: String(formData.get("gateway")) })
+      });
+      const { data, error } = await readApiResponse<{ error?: string; gateway?: { authorizationUrl?: string } }>(response);
+      if (!response.ok) {
+        toast.error(data.error || error || "Could not initialize payment");
+        return;
+      }
+      toast.success("Payment initialized");
+      if (data.gateway?.authorizationUrl) {
+        window.location.href = data.gateway.authorizationUrl;
+        return;
+      }
+      router.refresh();
+    } catch {
+      toast.error("Could not reach the server. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setReference(data.payment.reference);
-    toast.success("Payment reference generated");
-  }
-
-  async function confirm() {
-    setLoading(true);
-    const response = await fetch("/api/wallet/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reference })
-    });
-    const data = await response.json();
-    setLoading(false);
-    if (!response.ok) {
-      toast.error(data.error || "Payment confirmation failed");
-      return;
-    }
-    toast.success("Wallet funded successfully");
-    setReference("");
-    router.refresh();
   }
 
   return (
@@ -53,18 +44,10 @@ export function WalletFundForm() {
           <option value="FLUTTERWAVE">Flutterwave</option>
         </select>
         <button disabled={loading} className="rounded-lg bg-brand-600 px-5 py-2 font-semibold text-white disabled:opacity-60">
-          Generate
+          {loading ? "Starting..." : "Fund wallet"}
         </button>
       </form>
-      {reference && (
-        <div className="mt-4 rounded-lg bg-brand-50 p-4">
-          <p className="text-sm text-slate-600">Mock payment reference</p>
-          <p className="mt-1 font-mono font-semibold">{reference}</p>
-          <button onClick={confirm} disabled={loading} className="mt-3 rounded-lg bg-slate-950 px-4 py-2 text-sm font-semibold text-white">
-            Confirm mock payment
-          </button>
-        </div>
-      )}
+      <p className="mt-3 text-xs text-slate-500">Paystack test mode works when test keys are configured. Mock fallback redirects back for local development.</p>
     </div>
   );
 }

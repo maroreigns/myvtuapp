@@ -23,27 +23,31 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: "admin@naijadatahub.com" },
-    update: {},
+    update: { referralCode: "ADMINREF", emailVerifiedAt: new Date() },
     create: {
       fullName: "NaijaDataHub Admin",
       email: "admin@naijadatahub.com",
       phone: "08000000001",
       passwordHash,
       role: Role.ADMIN,
-      walletBalance: 0
+      walletBalance: 0,
+      referralCode: "ADMINREF",
+      emailVerifiedAt: new Date()
     }
   });
 
   await prisma.user.upsert({
     where: { email: "user@naijadatahub.com" },
-    update: {},
+    update: { referralCode: "USERREF", emailVerifiedAt: new Date() },
     create: {
       fullName: "Demo Customer",
       email: "user@naijadatahub.com",
       phone: "08000000002",
       passwordHash,
       role: Role.USER,
-      walletBalance: 5000
+      walletBalance: 5000,
+      referralCode: "USERREF",
+      emailVerifiedAt: new Date()
     }
   });
 
@@ -52,6 +56,26 @@ async function main() {
       where: { providerCode },
       update: { name, network, dataSize, validity, providerCost, sellingPrice, isActive: true },
       create: { name, network, dataSize, validity, providerCode, providerCost, sellingPrice, isActive: true }
+    });
+  }
+
+  for (const network of [Network.MTN, Network.AIRTEL, Network.GLO, Network.NINE_MOBILE]) {
+    await prisma.airtimePricing.upsert({
+      where: { network },
+      update: { discountPercent: 0, providerCostPercent: 98, isActive: true },
+      create: { network, discountPercent: 0, providerCostPercent: 98, isActive: true }
+    });
+  }
+
+  const defaultReferral = await prisma.referralCommissionSetting.findFirst({ where: { serviceType: null } });
+  if (defaultReferral) {
+    await prisma.referralCommissionSetting.update({
+      where: { id: defaultReferral.id },
+      data: { percentage: 1.5, flatAmount: 0, isActive: true }
+    });
+  } else {
+    await prisma.referralCommissionSetting.create({
+      data: { serviceType: null, percentage: 1.5, flatAmount: 0, isActive: true }
     });
   }
 }

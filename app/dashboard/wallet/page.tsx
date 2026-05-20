@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { WalletFundForm } from "@/components/WalletFundForm";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +19,7 @@ export default async function WalletPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[680px] text-left text-sm">
             <thead className="text-slate-500">
-              <tr><th className="py-2">Reference</th><th>Type</th><th>Amount</th><th>Balance after</th><th>Status</th></tr>
+              <tr><th className="py-2">Reference</th><th>Type</th><th>Amount</th><th>Balance after</th><th>Status</th><th>Receipt</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {history.map((item) => (
@@ -28,6 +29,7 @@ export default async function WalletPage() {
                   <td>₦{Number(item.amount).toLocaleString()}</td>
                   <td>₦{Number(item.balanceAfter).toLocaleString()}</td>
                   <td>{item.status}</td>
+                  <td>{item.status === "SUCCESSFUL" ? <Link className="text-brand-700" href={`/dashboard/receipts/${item.reference}`}>View receipt</Link> : "-"}</td>
                 </tr>
               ))}
             </tbody>

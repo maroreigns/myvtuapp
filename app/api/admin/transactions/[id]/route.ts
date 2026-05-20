@@ -61,9 +61,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   if (action === "retry") {
-    if (!transaction.plan || !transaction.phoneNumber) return jsonError("Transaction is not retryable", 400);
-    const response = await vtuService.buyData({
-      providerCode: transaction.plan.providerCode,
+    if (!transaction.phoneNumber || !transaction.network || !["DATA", "AIRTIME"].includes(transaction.serviceType)) return jsonError("Transaction is not retryable", 400);
+    const response = await vtuService.purchase({
+      serviceTransactionId: transaction.id,
+      serviceType: transaction.serviceType as "DATA" | "AIRTIME",
+      network: transaction.network!,
+      amount: Number(transaction.amount),
+      providerCode: transaction.plan?.providerCode,
       phoneNumber: transaction.phoneNumber,
       reference: transaction.reference
     });

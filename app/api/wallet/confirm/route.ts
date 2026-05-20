@@ -5,6 +5,7 @@ import { jsonError, jsonOk } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { confirmPaymentSchema } from "@/lib/validators";
 import { recordWalletChange } from "@/lib/wallet";
+import { markPaymentSuccessful } from "@/lib/payments";
 import { flutterwaveService } from "@/services/flutterwave.service";
 import { paystackService } from "@/services/paystack.service";
 
@@ -29,23 +30,14 @@ export async function POST(request: NextRequest) {
     return jsonError("Payment verification failed", 400);
   }
 
-  const walletTransaction = await prisma.$transaction(async (tx) => {
-    const lockedPayment = await tx.payment.findUnique({ where: { id: payment.id } });
-    if (!lockedPayment || lockedPayment.status === TransactionStatus.SUCCESSFUL) {
-      throw new Error("Payment reference has already been processed");
-    }
-
-    await tx.payment.update({ where: { id: payment.id }, data: { status: TransactionStatus.SUCCESSFUL } });
-    return recordWalletChange({
-      tx,
-      userId: user.id,
-      type: WalletTransactionType.CREDIT,
-      amount: payment.amount,
-      reference: `${payment.reference}-WALLET`,
-      description: `Wallet funding via ${payment.gateway}`,
-      status: TransactionStatus.SUCCESSFUL
-    });
+  const walletTransaction = await markPaymentSuccessful({
+    payment,
+    amount: "amount" in verification ? verification.amount || undefined : undefined,
+    gatewayReference: "gatewayReference" in verification ? verification.gatewayReference : undefined,
+    paidAt: verification.paidAt
   });
+
+  if (!walletTransaction) return jsonError("Payment reference has already been processed", 409);
 
   return jsonOk({ walletTransaction: { ...walletTransaction, amount: Number(walletTransaction.amount) } });
 }

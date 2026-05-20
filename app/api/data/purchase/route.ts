@@ -8,12 +8,14 @@ import { createReference } from "@/lib/reference";
 import { purchaseDataSchema } from "@/lib/validators";
 import { recordWalletChange } from "@/lib/wallet";
 import { vtuService } from "@/services/vtu.service";
+import { creditReferralBonus } from "@/services/referral.service";
 
 export async function POST(request: NextRequest) {
   if (rateLimit(request, "purchase:data", 20, 60_000).limited) return jsonError("Too many purchase attempts", 429);
 
   const user = await requireUser(request);
   if (!user) return jsonError("Unauthorized", 401);
+  if (!user.emailVerifiedAt) return jsonError("Please verify your email before buying data", 403);
 
   const body = purchaseDataSchema.safeParse(await request.json());
   if (!body.success) return jsonError(body.error.errors[0]?.message || "Invalid request", 422);
@@ -62,7 +64,11 @@ export async function POST(request: NextRequest) {
     return jsonError(error instanceof Error ? error.message : "Purchase could not be created", 400);
   }
 
-  const providerResponse = await vtuService.buyData({
+  const providerResponse = await vtuService.purchase({
+    serviceTransactionId: created.id,
+    serviceType: ServiceType.DATA,
+    network: created.network!,
+    amount: Number(created.amount),
     providerCode: created.plan?.providerCode || "",
     phoneNumber: body.data.phoneNumber,
     reference
@@ -70,7 +76,7 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.$transaction(async (tx) => {
     if (providerResponse.success) {
-      return tx.serviceTransaction.update({
+      const successful = await tx.serviceTransaction.update({
         where: { id: created.id },
         data: {
           status: TransactionStatus.SUCCESSFUL,
@@ -78,6 +84,23 @@ export async function POST(request: NextRequest) {
           responseMessage: providerResponse.message
         }
       });
+      await creditReferralBonus({
+        tx,
+        referredUserId: user.id,
+        serviceTransactionId: successful.id,
+        serviceType: ServiceType.DATA,
+        amount: new Prisma.Decimal(successful.amount)
+      });
+      await tx.smsLog.create({
+        data: {
+          userId: user.id,
+          phone: user.phone,
+          provider: process.env.SMS_PROVIDER || "mock",
+          status: "SENT",
+          message: `Data purchase successful. Ref: ${successful.reference}`
+        }
+      });
+      return successful;
     }
 
     await recordWalletChange({
@@ -90,7 +113,7 @@ export async function POST(request: NextRequest) {
       status: TransactionStatus.SUCCESSFUL
     });
 
-    return tx.serviceTransaction.update({
+    const refunded = await tx.serviceTransaction.update({
       where: { id: created.id },
       data: {
         status: TransactionStatus.REFUNDED,
@@ -98,6 +121,16 @@ export async function POST(request: NextRequest) {
         responseMessage: providerResponse.message
       }
     });
+    await tx.smsLog.create({
+      data: {
+        userId: user.id,
+        phone: user.phone,
+        provider: process.env.SMS_PROVIDER || "mock",
+        status: "SENT",
+        message: `Data purchase failed and wallet was refunded. Ref: ${refunded.reference}`
+      }
+    });
+    return refunded;
   });
 
   return jsonOk({
