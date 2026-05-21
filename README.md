@@ -1,6 +1,6 @@
-# NaijaDataHub
+# Obmapay
 
-NaijaDataHub is a Nigerian digital services platform built with Next.js, Prisma, PostgreSQL, wallet accounting, admin controls, Paystack funding, VTU adapters, referrals, receipts, email verification, SMS logs, and mock-first provider fallbacks.
+Obmapay is a Nigerian digital services platform built with Next.js, Prisma, PostgreSQL, wallet accounting, admin controls, Paystack funding, VTU adapters, referrals, receipts, email verification, SMS logs, and mock-first provider fallbacks.
 
 ## Setup
 
@@ -14,8 +14,8 @@ npm run dev
 
 Seed accounts:
 
-- Admin: `admin@naijadatahub.com` / `Password123!`
-- User: `user@naijadatahub.com` / `Password123!`
+- Admin: `admin@obmapay.com` / `Password123!`
+- User: `user@obmapay.com` / `Password123!`
 
 ## Environment
 

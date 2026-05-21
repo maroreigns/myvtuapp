@@ -27,7 +27,7 @@ export default async function AdminRechargeCardsPage() {
             <div className="mt-4 grid gap-3 print:grid-cols-3 sm:grid-cols-2 lg:grid-cols-3">
               {batch.cards.map((card) => (
                 <div key={card.id} className="rounded-lg border border-dashed border-slate-300 p-4">
-                  <p className="text-xs text-slate-500">NaijaDataHub {batch.network}</p>
+                  <p className="text-xs text-slate-500">Obmapay {batch.network}</p>
                   <p className="mt-2 text-lg font-bold">NGN {Number(batch.denomination).toLocaleString()}</p>
                   <p className="mt-2 font-mono text-sm">PIN: {card.pin}</p>
                   <p className="font-mono text-xs text-slate-500">S/N: {card.serialNumber}</p>

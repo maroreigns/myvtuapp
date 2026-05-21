@@ -24,7 +24,7 @@ export async function createEmailVerification(user: { id: string; email: string;
   const link = `${appUrl()}/verify-email?token=${token}`;
   await emailService.send({
     to: user.email,
-    subject: "Verify your NaijaDataHub email",
+    subject: "Verify your Obmapay email",
     html: `<p>Hello ${user.fullName},</p><p>Verify your email to activate wallet funding and purchases.</p><p><a href="${link}">Verify email</a></p>`
   });
 
@@ -48,7 +48,7 @@ export async function sendEmailVerification(user: { email: string; fullName: str
   const link = `${appUrl()}/verify-email?token=${token}`;
   await emailService.send({
     to: user.email,
-    subject: "Verify your NaijaDataHub email",
+    subject: "Verify your Obmapay email",
     html: `<p>Hello ${user.fullName},</p><p>Verify your email to activate wallet funding and purchases.</p><p><a href="${link}">Verify email</a></p>`
   });
   return { link };

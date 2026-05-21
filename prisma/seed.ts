@@ -22,11 +22,11 @@ async function main() {
   const passwordHash = await bcrypt.hash("Password123!", 12);
 
   await prisma.user.upsert({
-    where: { email: "admin@naijadatahub.com" },
+    where: { email: "admin@obmapay.com" },
     update: { referralCode: "ADMINREF", emailVerifiedAt: new Date() },
     create: {
-      fullName: "NaijaDataHub Admin",
-      email: "admin@naijadatahub.com",
+      fullName: "Obmapay Admin",
+      email: "admin@obmapay.com",
       phone: "08000000001",
       passwordHash,
       role: Role.ADMIN,
@@ -37,11 +37,11 @@ async function main() {
   });
 
   await prisma.user.upsert({
-    where: { email: "user@naijadatahub.com" },
+    where: { email: "user@obmapay.com" },
     update: { referralCode: "USERREF", emailVerifiedAt: new Date() },
     create: {
       fullName: "Demo Customer",
-      email: "user@naijadatahub.com",
+      email: "user@obmapay.com",
       phone: "08000000002",
       passwordHash,
       role: Role.USER,

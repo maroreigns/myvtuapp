@@ -6,8 +6,22 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "NaijaDataHub",
-  description: "Nigeria VTU, data reselling, bills and wallet platform"
+  title: "Obmapay",
+  description: "Nigeria VTU, data reselling, bills and wallet platform",
+  applicationName: "Obmapay",
+  manifest: "/site.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" }
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Obmapay",
+    statusBarStyle: "default"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
