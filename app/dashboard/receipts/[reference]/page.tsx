@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatNetwork } from "@/lib/serialize";
+import { BrandWordmark } from "@/components/Logo";
 import { PrintButton } from "@/components/PrintButton";
 
 export default async function ReceiptPage({ params }: { params: { reference: string } }) {
@@ -40,7 +41,7 @@ export default async function ReceiptPage({ params }: { params: { reference: str
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm print:border-0 print:shadow-none">
         <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <p className="text-sm font-semibold text-brand-700">Obmapay</p>
+            <p className="text-sm font-semibold text-slate-700"><BrandWordmark /></p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">Transaction Receipt</h1>
           </div>
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">SUCCESSFUL</span>

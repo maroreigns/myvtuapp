@@ -1,15 +1,28 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { jsonOk } from "@/lib/http";
+import { jsonError, jsonOk } from "@/lib/http";
+import { vtuService } from "@/services/vtu.service";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const network = request.nextUrl.searchParams.get("network");
+  let providerCodes: string[] = [];
+  try {
+    const result = await vtuService.syncDataPlans(network || undefined);
+    providerCodes = result.providerCodes;
+  } catch (error) {
+    console.error("EasyAccessAPI data plan sync failed", error);
+    return jsonError(error instanceof Error ? error.message : "EasyAccess data plans could not be loaded", 502);
+  }
+
   const plans = await prisma.dataPlan.findMany({
-    where: { isActive: true, ...(network ? { network: network as never } : {}) },
+    where: { isActive: true, providerCode: { in: providerCodes }, ...(network ? { network: network as never } : {}) },
     orderBy: [{ network: "asc" }, { sellingPrice: "asc" }]
   });
 
   return jsonOk({
+    source: "easyaccess",
     plans: plans.map((plan) => ({
       ...plan,
       providerCost: Number(plan.providerCost),

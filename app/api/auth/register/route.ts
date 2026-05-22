@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await smsService.send({ userId: user.id, phone: user.phone, message: "Welcome to Obmapay. Please verify your email to start transacting." });
+      await smsService.send({ userId: user.id, phone: user.phone, message: "Welcome to ObmaPay. Please verify your email to start transacting." });
       console.log("[register] welcome SMS logged", { userId: user.id, phone: user.phone });
     } catch (error) {
       console.error("[register] welcome SMS failed", { userId: user.id, error });

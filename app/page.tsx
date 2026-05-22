@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { ArrowRight, Cable, Database, Facebook, Instagram, Lightbulb, MessageSquareText, Music2, Phone, RefreshCcw, ShieldCheck, Ticket, Twitter, Wallet } from "lucide-react";
-import { Logo } from "@/components/Logo";
+import { BrandWordmark, Logo } from "@/components/Logo";
 
 const serviceCards: Array<{
   title: string;
@@ -32,7 +32,7 @@ const serviceCards: Array<{
   },
   {
     title: "Electricity",
-    description: "Pay prepaid and postpaid electricity bills from your Obmapay wallet.",
+    description: "Pay prepaid and postpaid electricity bills from your secure wallet.",
     button: "Coming Soon",
     icon: Lightbulb
   },
@@ -105,7 +105,7 @@ export default function HomePage() {
               Sell/Buy data, airtime, bills and digital pins from one secure wallet.
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-600">
-              Obmapay gives customers and resellers a dependable way to fund wallets, buy mobile data, track every transaction, and scale into more digital services.
+              <BrandWordmark /> gives customers and resellers a dependable way to fund wallets, buy mobile data, track every transaction, and scale into more digital services.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/register" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-md">
@@ -233,7 +233,7 @@ export default function HomePage() {
           <div>
             <h2 className="text-base font-bold text-white">About Us</h2>
             <p className="mt-4 text-sm leading-7">
-              Obmapay is a virtual top-up and digital services platform built to help users buy and resell affordable data, airtime, bill payments, cable TV subscriptions, and digital pins from one secure wallet.
+              <BrandWordmark className="font-semibold text-slate-100" /> is a virtual top-up and digital services platform built to help users buy and resell affordable data, airtime, bill payments, cable TV subscriptions, and digital pins from one secure wallet.
             </p>
           </div>
           <div>
@@ -266,7 +266,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="border-t border-white/10 px-4 py-5 text-center text-sm text-slate-400">
-          &copy; 2026 Obmapay. Built for secure Nigerian digital service resale.
+          &copy; 2026 <BrandWordmark />. Built for secure Nigerian digital service resale.
         </div>
       </footer>
     </main>

@@ -16,7 +16,7 @@ export const emailService = {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`
         },
         body: JSON.stringify({
-          from: process.env.EMAIL_FROM || "Obmapay <no-reply@obmapay.com>",
+          from: process.env.EMAIL_FROM || "ObmaPay <no-reply@obmapay.com>",
           to: input.to,
           subject: input.subject,
           html: input.html

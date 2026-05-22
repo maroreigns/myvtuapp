@@ -34,15 +34,23 @@ export async function POST(request: NextRequest) {
       const sellingPrice = amount.minus(amount.mul(discountPercent).div(100));
       const providerCost = amount.mul(providerCostPercent).div(100);
 
-      await recordWalletChange({
-        tx,
-        userId: user.id,
-        type: WalletTransactionType.DEBIT,
-        amount: sellingPrice,
-        reference: `${reference}-DEBIT`,
-        description: `Airtime purchase: ${body.data.network}`,
-        status: TransactionStatus.SUCCESSFUL
+      const freshUser = await tx.user.findUnique({ where: { id: user.id }, select: { walletBalance: true } });
+      if (!freshUser || freshUser.walletBalance.lessThan(sellingPrice)) {
+        throw new Error("Insufficient wallet balance");
+      }
+
+      const duplicate = await tx.serviceTransaction.findFirst({
+        where: {
+          userId: user.id,
+          serviceType: ServiceType.AIRTIME,
+          network: body.data.network,
+          phoneNumber: body.data.phoneNumber,
+          amount: sellingPrice,
+          status: TransactionStatus.PENDING,
+          createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) }
+        }
       });
+      if (duplicate) throw new Error("A similar airtime purchase is already pending");
 
       return tx.serviceTransaction.create({
         data: {
@@ -55,7 +63,7 @@ export async function POST(request: NextRequest) {
           profit: sellingPrice.minus(providerCost),
           reference,
           status: TransactionStatus.PENDING,
-          responseMessage: "Airtime purchase created and wallet debited",
+          responseMessage: "Airtime purchase created",
           metadata: { faceValue: body.data.amount }
         }
       });
@@ -75,6 +83,16 @@ export async function POST(request: NextRequest) {
 
   const updated = await prisma.$transaction(async (tx) => {
     if (providerResponse.success) {
+      await recordWalletChange({
+        tx,
+        userId: user.id,
+        type: WalletTransactionType.DEBIT,
+        amount: new Prisma.Decimal(created.amount),
+        reference: `${reference}-DEBIT`,
+        description: `Airtime purchase: ${body.data.network}`,
+        status: TransactionStatus.SUCCESSFUL
+      });
+
       const successful = await tx.serviceTransaction.update({
         where: { id: created.id },
         data: {
@@ -102,20 +120,10 @@ export async function POST(request: NextRequest) {
       return successful;
     }
 
-    await recordWalletChange({
-      tx,
-      userId: user.id,
-      type: WalletTransactionType.CREDIT,
-      amount: new Prisma.Decimal(created.amount),
-      reference: `${reference}-REFUND`,
-      description: `Automatic refund for failed ${created.reference}`,
-      status: TransactionStatus.SUCCESSFUL
-    });
-
-    const refunded = await tx.serviceTransaction.update({
+    const failed = await tx.serviceTransaction.update({
       where: { id: created.id },
       data: {
-        status: TransactionStatus.REFUNDED,
+        status: TransactionStatus.FAILED,
         providerReference: providerResponse.providerReference,
         responseMessage: providerResponse.message
       }
@@ -126,10 +134,10 @@ export async function POST(request: NextRequest) {
         phone: user.phone,
         provider: process.env.SMS_PROVIDER || "mock",
         status: "SENT",
-        message: `Airtime purchase failed and wallet was refunded. Ref: ${refunded.reference}`
+        message: `Airtime purchase failed. Your wallet was not debited. Ref: ${failed.reference}`
       }
     });
-    return refunded;
+    return failed;
   });
 
   return jsonOk({

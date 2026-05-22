@@ -52,7 +52,11 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
         toast.error(data.error || error || "Airtime purchase failed");
         return;
       }
-      toast.success(data.transaction?.status === "REFUNDED" ? "Provider failed. Wallet refunded." : "Airtime purchase successful");
+      if (data.transaction?.status === "FAILED") {
+        toast.error("Provider failed. Your wallet was not debited.");
+      } else {
+        toast.success("Airtime purchase successful");
+      }
       router.refresh();
     } catch {
       toast.error("Could not reach the server. Please try again.");

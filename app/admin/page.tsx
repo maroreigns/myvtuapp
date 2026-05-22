@@ -1,4 +1,5 @@
 import { Banknote, CheckCircle2, TrendingUp, Users, Wallet, XCircle } from "lucide-react";
+import { BrandWordmark } from "@/components/Logo";
 import { StatCard } from "@/components/StatCard";
 import { prisma } from "@/lib/prisma";
 
@@ -16,7 +17,7 @@ export default async function AdminDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-500">Operational overview for Obmapay.</p>
+        <p className="mt-1 text-sm text-slate-500">Operational overview for <BrandWordmark />.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard label="Total users" value={users.toLocaleString()} icon={Users} />

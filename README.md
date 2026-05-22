@@ -1,6 +1,6 @@
-# Obmapay
+# ObmaPay
 
-Obmapay is a Nigerian digital services platform built with Next.js, Prisma, PostgreSQL, wallet accounting, admin controls, Paystack funding, VTU adapters, referrals, receipts, email verification, SMS logs, and mock-first provider fallbacks.
+ObmaPay is a Nigerian digital services platform built with Next.js, Prisma, PostgreSQL, wallet accounting, admin controls, Paystack funding, VTU adapters, referrals, receipts, email verification, SMS logs, and mock-first provider fallbacks.
 
 ## Setup
 

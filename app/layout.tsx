@@ -6,20 +6,21 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Obmapay",
+  title: "ObmaPay",
   description: "Nigeria VTU, data reselling, bills and wallet platform",
-  applicationName: "Obmapay",
+  applicationName: "ObmaPay",
   manifest: "/site.webmanifest",
   icons: {
     icon: [
       { url: "/favicon.ico" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" }
     ],
-    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }]
   },
   appleWebApp: {
     capable: true,
-    title: "Obmapay",
+    title: "ObmaPay",
     statusBarStyle: "default"
   }
 };

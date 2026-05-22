@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="96" viewBox="0 0 360 96" role="img" aria-labelledby="title desc">
+  <title id="title">ObmaPay dark logo</title>
+  <desc id="desc">OBM rounded square icon with light ObmaPay wordmark for dark backgrounds.</desc>
+  <defs>
+    <linearGradient id="iconGradient" x1="12" y1="10" x2="84" y2="86" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10b981"/>
+      <stop offset="1" stop-color="#0284c7"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="80" height="80" rx="20" fill="url(#iconGradient)"/>
+  <path d="M72 16c-5 18-23 35-56 39V28c0-7 5-12 12-12h44Z" fill="#ffffff" opacity=".16"/>
+  <text x="48" y="57" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="900" letter-spacing=".5" fill="#ffffff">OBM</text>
+  <text x="112" y="59" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="800" fill="#ffffff">Obma</text>
+  <text x="224" y="59" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="800" fill="#34d399">P</text>
+  <text x="251" y="59" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="800" fill="#ffffff">ay</text>
+</svg>

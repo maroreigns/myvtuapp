@@ -1,4 +1,11 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/api/data/plans/route": "app/api/data/plans/route.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/dashboard/wallet/page": "app/dashboard/wallet/page.js",
+  "/dashboard/buy-airtime/page": "app/dashboard/buy-airtime/page.js",
+  "/dashboard/buy-data/page": "app/dashboard/buy-data/page.js",
+  "/dashboard/referrals/page": "app/dashboard/referrals/page.js",
+  "/dashboard/profile/page": "app/dashboard/profile/page.js",
+  "/dashboard/transactions/page": "app/dashboard/transactions/page.js"
 }

@@ -732,6 +732,9 @@ video {
 .w-full {
   width: 100%;
 }
+.min-w-\[1180px\] {
+  min-width: 1180px;
+}
 .min-w-\[680px\] {
   min-width: 680px;
 }
@@ -741,9 +744,6 @@ video {
 .min-w-\[860px\] {
   min-width: 860px;
 }
-.min-w-\[980px\] {
-  min-width: 980px;
-}
 .max-w-2xl {
   max-width: 42rem;
 }
@@ -752,6 +752,12 @@ video {
 }
 .max-w-7xl {
   max-width: 80rem;
+}
+.max-w-\[160px\] {
+  max-width: 160px;
+}
+.max-w-\[260px\] {
+  max-width: 260px;
 }
 .max-w-lg {
   max-width: 32rem;
@@ -767,6 +773,18 @@ video {
 }
 .shrink-0 {
   flex-shrink: 0;
+}
+.animate-\[brandFloat_2\.8s_ease-in-out_infinite\] {
+  animation: brandFloat 2.8s ease-in-out infinite;
+}
+@keyframes spin {
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
 }
 .cursor-not-allowed {
   cursor: not-allowed;
@@ -883,6 +901,9 @@ video {
 .border {
   border-width: 1px;
 }
+.border-2 {
+  border-width: 2px;
+}
 .border-y {
   border-top-width: 1px;
   border-bottom-width: 1px;
@@ -917,6 +938,10 @@ video {
 }
 .border-white\/10 {
   border-color: rgb(255 255 255 / 0.1);
+}
+.border-t-brand-600 {
+  --tw-border-opacity: 1;
+  border-top-color: rgb(5 150 105 / var(--tw-border-opacity, 1));
 }
 .bg-amber-100 {
   --tw-bg-opacity: 1;
@@ -953,6 +978,10 @@ video {
 .bg-red-100 {
   --tw-bg-opacity: 1;
   background-color: rgb(254 226 226 / var(--tw-bg-opacity, 1));
+}
+.bg-red-50 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 242 242 / var(--tw-bg-opacity, 1));
 }
 .bg-rose-100 {
   --tw-bg-opacity: 1;
@@ -1206,9 +1235,17 @@ video {
   --tw-text-opacity: 1;
   color: rgb(190 18 60 / var(--tw-text-opacity, 1));
 }
+.text-sky-700 {
+  --tw-text-opacity: 1;
+  color: rgb(3 105 161 / var(--tw-text-opacity, 1));
+}
 .text-sky-800 {
   --tw-text-opacity: 1;
   color: rgb(7 89 133 / var(--tw-text-opacity, 1));
+}
+.text-slate-100 {
+  --tw-text-opacity: 1;
+  color: rgb(241 245 249 / var(--tw-text-opacity, 1));
 }
 .text-slate-200 {
   --tw-text-opacity: 1;
@@ -1359,6 +1396,16 @@ textarea {
     linear-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px);
   background-size: 36px 36px;
+}
+
+@keyframes brandFloat {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.03);
+  }
 }
 
 .hover\:-translate-y-0\.5:hover {

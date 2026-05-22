@@ -1,10 +1,12 @@
 import { TransactionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { easyAccessProvider, fetchEasyAccessDataPlans } from "@/services/vtu/providers/easyaccess.provider";
 import { mockVtuProvider } from "@/services/vtu/providers/mock.provider";
 import { liveVtuProvider } from "@/services/vtu/providers/live.provider";
-import { VtuPurchaseInput } from "@/services/vtu/types";
+import { VtuDataPlan, VtuPurchaseInput } from "@/services/vtu/types";
 
 function provider() {
+  if (process.env.VTU_PROVIDER_MODE === "easyaccess" || process.env.VTU_PROVIDER_MODE === "live") return easyAccessProvider;
   return process.env.VTU_PROVIDER_MODE === "live" ? liveVtuProvider : mockVtuProvider;
 }
 
@@ -63,5 +65,43 @@ export const vtuService = {
       phoneNumber: input.phoneNumber,
       reference: input.reference
     });
+  },
+
+  async syncDataPlans(network?: string) {
+    const plans = await fetchEasyAccessDataPlans(network);
+    if (plans.length === 0) return { synced: 0, providerCodes: [] };
+
+    await upsertPlans(plans);
+
+    return { synced: plans.length, providerCodes: plans.map((plan) => plan.providerCode) };
   }
 };
+
+async function upsertPlans(plans: VtuDataPlan[]) {
+  await prisma.$transaction(
+    plans.map((plan) =>
+      prisma.dataPlan.upsert({
+        where: { providerCode: plan.providerCode },
+        create: {
+          network: plan.network,
+          name: plan.name,
+          dataSize: plan.dataSize,
+          validity: plan.validity,
+          providerCode: plan.providerCode,
+          providerCost: plan.providerCost,
+          sellingPrice: plan.sellingPrice,
+          isActive: true
+        },
+        update: {
+          network: plan.network,
+          name: plan.name,
+          dataSize: plan.dataSize,
+          validity: plan.validity,
+          providerCost: plan.providerCost,
+          sellingPrice: plan.sellingPrice,
+          isActive: true
+        }
+      })
+    )
+  );
+}

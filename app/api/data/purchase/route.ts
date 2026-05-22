@@ -33,6 +33,18 @@ export async function POST(request: NextRequest) {
         throw new Error("Insufficient wallet balance");
       }
 
+      const duplicate = await tx.serviceTransaction.findFirst({
+        where: {
+          userId: user.id,
+          serviceType: ServiceType.DATA,
+          planId: plan.id,
+          phoneNumber: body.data.phoneNumber,
+          status: TransactionStatus.PENDING,
+          createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) }
+        }
+      });
+      if (duplicate) throw new Error("A similar data purchase is already pending");
+
       await recordWalletChange({
         tx,
         userId: user.id,
@@ -55,7 +67,7 @@ export async function POST(request: NextRequest) {
           profit: plan.sellingPrice.minus(plan.providerCost),
           reference,
           status: TransactionStatus.PENDING,
-          responseMessage: "Purchase created and wallet debited"
+          responseMessage: "Data purchase created and wallet debited"
         },
         include: { plan: true }
       });
@@ -71,7 +83,8 @@ export async function POST(request: NextRequest) {
     amount: Number(created.amount),
     providerCode: created.plan?.providerCode || "",
     phoneNumber: body.data.phoneNumber,
-    reference
+    reference,
+    maxAmountPayable: Number(created.amount)
   });
 
   const updated = await prisma.$transaction(async (tx) => {
@@ -113,10 +126,10 @@ export async function POST(request: NextRequest) {
       status: TransactionStatus.SUCCESSFUL
     });
 
-    const refunded = await tx.serviceTransaction.update({
+    const failed = await tx.serviceTransaction.update({
       where: { id: created.id },
       data: {
-        status: TransactionStatus.REFUNDED,
+        status: TransactionStatus.FAILED,
         providerReference: providerResponse.providerReference,
         responseMessage: providerResponse.message
       }
@@ -127,10 +140,10 @@ export async function POST(request: NextRequest) {
         phone: user.phone,
         provider: process.env.SMS_PROVIDER || "mock",
         status: "SENT",
-        message: `Data purchase failed and wallet was refunded. Ref: ${refunded.reference}`
+        message: `Data purchase failed and wallet was refunded. Ref: ${failed.reference}`
       }
     });
-    return refunded;
+    return failed;
   });
 
   return jsonOk({
