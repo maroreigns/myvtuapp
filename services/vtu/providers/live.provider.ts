@@ -9,6 +9,8 @@ export const liveVtuProvider: VtuProvider = {
     if (!baseUrl || !apiKey) {
       return {
         success: false,
+        provider: this.name,
+        requestId: input.reference,
         providerReference: `LIVE-${input.reference}`,
         message: "Live VTU provider is not configured"
       };
@@ -36,6 +38,8 @@ export const liveVtuProvider: VtuProvider = {
 
     return {
       success,
+      provider: this.name,
+      requestId: input.reference,
       providerReference: String((raw as { reference?: string; transaction_id?: string }).reference || (raw as { transaction_id?: string }).transaction_id || `LIVE-${input.reference}`),
       message: String((raw as { message?: string }).message || (success ? "VTU purchase successful" : "VTU purchase failed")),
       raw

@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
 
   const user = await requireUser(request);
   if (!user) return jsonError("Unauthorized", 401);
-  if (!user.emailVerifiedAt) return jsonError("Please verify your email before funding your wallet", 403);
 
   const body = fundWalletSchema.safeParse(await request.json());
   if (!body.success) return jsonError(body.error.errors[0]?.message || "Invalid request", 422);

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, setAuthCookie, signAuthToken } from "@/lib/auth";
 import { jsonOk, readJsonBody } from "@/lib/http";
@@ -10,6 +11,17 @@ import { smsService } from "@/services/sms/sms.service";
 
 function registerError(message: string, status = 400) {
   return jsonOk({ success: false, message, error: message }, status);
+}
+
+function registrationFailureMessage(error: unknown) {
+  if (!process.env.DATABASE_URL || process.env.DATABASE_URL === "your_existing_database_url") {
+    return "Database is not configured. Please set DATABASE_URL to the active Postgres connection string.";
+  }
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    const fields = Array.isArray(error.meta?.target) ? error.meta.target.join(", ") : "field";
+    return `A user with this ${fields} already exists`;
+  }
+  return error instanceof Error ? error.message : "Account could not be created. Please try again.";
 }
 
 async function createUniqueReferralCode() {
@@ -24,6 +36,11 @@ async function createUniqueReferralCode() {
 export async function POST(request: NextRequest) {
   try {
     console.log("[register] request received");
+    if (!process.env.DATABASE_URL || process.env.DATABASE_URL === "your_existing_database_url") {
+      console.error("[register] DATABASE_URL is missing or still set to the placeholder value");
+      return registerError("Database is not configured. Please set DATABASE_URL to the active Postgres connection string.", 500);
+    }
+
     if (rateLimit(request, "auth:register", 8, 60_000).limited) {
       console.warn("[register] rate limit exceeded");
       return registerError("Too many attempts. Please wait and try again.", 429);
@@ -88,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-      await smsService.send({ userId: user.id, phone: user.phone, message: "Welcome to ObmaPay. Please verify your email to start transacting." });
+      await smsService.send({ userId: user.id, phone: user.phone, message: "Welcome to ObmaPay. You can start transacting from your dashboard." });
       console.log("[register] welcome SMS logged", { userId: user.id, phone: user.phone });
     } catch (error) {
       console.error("[register] welcome SMS failed", { userId: user.id, error });
@@ -105,12 +122,16 @@ export async function POST(request: NextRequest) {
 
     return jsonOk({
       success: true,
-      message: "Account created successfully. Please verify your email.",
+      message: "Account created successfully.",
       signedIn,
-      user
+      user: {
+        ...user,
+        walletBalance: Number(user.walletBalance)
+      }
     }, 201);
   } catch (error) {
-    console.error("Registration failed", error);
-    return registerError("Account could not be created. Please try again.", 500);
+    const message = registrationFailureMessage(error);
+    console.error("[register] failed", { message, error });
+    return registerError(message, error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" ? 409 : 500);
   }
 }

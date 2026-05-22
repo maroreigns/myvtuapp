@@ -12,6 +12,11 @@ function loginError(message: string, status = 400) {
 export async function POST(request: NextRequest) {
   try {
     console.log("[login] request received");
+    if (!process.env.DATABASE_URL || process.env.DATABASE_URL === "your_existing_database_url") {
+      console.error("[login] DATABASE_URL is missing or still set to the placeholder value");
+      return loginError("Database is not configured. Please set DATABASE_URL to the active Postgres connection string.", 500);
+    }
+
     if (rateLimit(request, "auth:login", 10, 60_000).limited) {
       console.warn("[login] rate limit exceeded");
       return loginError("Too many attempts. Please wait and try again.", 429);
@@ -60,13 +65,9 @@ export async function POST(request: NextRequest) {
     setAuthCookie(token);
     console.log("[login] auth cookie set", { userId: user.id });
 
-    const message = user.emailVerifiedAt
-      ? "Welcome back"
-      : "Welcome back. Please verify your email to unlock wallet funding and purchases.";
-
     return jsonOk({
       success: true,
-      message,
+      message: "Welcome back",
       user: {
         id: user.id,
         fullName: user.fullName,
@@ -78,7 +79,8 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error("Login failed", error);
-    return loginError("Login failed. Please try again.", 500);
+    const message = error instanceof Error ? error.message : "Login failed. Please try again.";
+    console.error("[login] failed", { message, error });
+    return loginError(message, 500);
   }
 }

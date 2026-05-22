@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { readApiResponse } from "@/lib/client-response";
+import { detectNetwork, normalizeNigerianPhone } from "@/lib/network-detection";
 import { NETWORKS, networkLabel } from "@/lib/networks";
 
 type Pricing = { network: string; discountPercent: number; isActive: boolean };
@@ -12,19 +13,32 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
   const router = useRouter();
   const networkOptions = [...NETWORKS];
   const [network, setNetwork] = useState("MTN");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [amount, setAmount] = useState(100);
   const [loading, setLoading] = useState(false);
   const selected = pricing.find((item) => item.network === network) || { network, discountPercent: 0, isActive: true };
   const payable = amount - amount * ((selected?.discountPercent || 0) / 100);
+  const normalizedPhone = normalizeNigerianPhone(phoneNumber);
+  const detectedNetwork = detectNetwork(phoneNumber);
+  const hasNetworkMismatch = Boolean(detectedNetwork && detectedNetwork !== network);
+
+  function updatePhoneNumber(value: string) {
+    setPhoneNumber(value);
+    const detected = detectNetwork(value);
+    if (detected && !phoneNumber.trim()) setNetwork(detected);
+  }
 
   async function submit(formData: FormData) {
-    const phoneNumber = String(formData.get("phoneNumber") || "").trim();
     if (!network) {
       toast.error("Please select a network");
       return;
     }
-    if (!phoneNumber) {
+    if (!normalizedPhone) {
       toast.error("Phone number is required");
+      return;
+    }
+    if (hasNetworkMismatch) {
+      toast.error("This phone number does not match selected network.");
       return;
     }
     if (!amount || amount <= 0) {
@@ -44,7 +58,7 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
         body: JSON.stringify({
           network,
           amount,
-          phoneNumber
+          phoneNumber: normalizedPhone
         })
       });
       const { data, error } = await readApiResponse<{ error?: string; transaction?: { status?: string } }>(response);
@@ -101,7 +115,25 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
         </label>
         <label className="text-sm font-medium text-slate-700 md:col-span-2">
           Phone number
-          <input name="phoneNumber" placeholder="08012345678" required disabled={loading} className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100" />
+          <input
+            name="phoneNumber"
+            value={phoneNumber}
+            onChange={(event) => updatePhoneNumber(event.target.value)}
+            placeholder="08012345678"
+            required
+            disabled={loading}
+            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
+          />
+          {detectedNetwork && (
+            <span className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              Detected network: {networkLabel(detectedNetwork)}
+            </span>
+          )}
+          {hasNetworkMismatch && (
+            <p className="mt-2 text-sm font-medium text-red-600">
+              This number appears to be a {networkLabel(detectedNetwork!)} number, not {networkLabel(network)}.
+            </p>
+          )}
         </label>
       </div>
       <div className="mt-5 rounded-lg bg-slate-50 p-4">
@@ -111,7 +143,7 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
       {pricing.length === 0 && (
         <p className="mt-3 text-xs text-slate-500">Default airtime pricing is being used until admin pricing is configured.</p>
       )}
-      <button disabled={loading || networkOptions.length === 0 || !selected?.isActive || amount <= 0} className="mt-5 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">
+      <button disabled={loading || networkOptions.length === 0 || !selected?.isActive || amount <= 0 || hasNetworkMismatch} className="mt-5 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">
         {loading ? "Processing..." : "Confirm purchase"}
       </button>
     </form>

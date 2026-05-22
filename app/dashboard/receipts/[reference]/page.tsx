@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatNetwork } from "@/lib/serialize";
@@ -7,9 +7,11 @@ import { PrintButton } from "@/components/PrintButton";
 
 export default async function ReceiptPage({ params }: { params: { reference: string } }) {
   const user = await requireUser();
+  if (!user) redirect("/login");
+
   const [service, wallet] = await Promise.all([
-    prisma.serviceTransaction.findFirst({ where: { reference: params.reference, userId: user!.id }, include: { user: true, plan: true } }),
-    prisma.walletTransaction.findFirst({ where: { reference: params.reference, userId: user!.id }, include: { user: true } })
+    prisma.serviceTransaction.findFirst({ where: { reference: params.reference, userId: user.id }, include: { user: true, plan: true } }),
+    prisma.walletTransaction.findFirst({ where: { reference: params.reference, userId: user.id }, include: { user: true } })
   ]);
   const record = service || wallet;
   if (!record || record.status !== "SUCCESSFUL") notFound();

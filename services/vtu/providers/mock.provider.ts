@@ -8,6 +8,8 @@ export const mockVtuProvider: VtuProvider = {
     if (shouldFail) {
       return {
         success: false,
+        provider: this.name,
+        requestId: input.reference,
         providerReference: `MOCK-${input.reference}`,
         message: "Mock VTU provider rejected this test number",
         raw: { reason: "TEST_FAILURE" }
@@ -16,6 +18,8 @@ export const mockVtuProvider: VtuProvider = {
 
     return {
       success: true,
+      provider: this.name,
+      requestId: input.reference,
       providerReference: `MOCK-${input.reference}`,
       message:
         input.serviceType === "AIRTIME"

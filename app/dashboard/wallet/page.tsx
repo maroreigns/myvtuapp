@@ -1,17 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { WalletFundForm } from "@/components/WalletFundForm";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function WalletPage() {
   const user = await requireUser();
-  const history = await prisma.walletTransaction.findMany({ where: { userId: user!.id }, orderBy: { createdAt: "desc" }, take: 50 });
+  if (!user) redirect("/login");
+
+  const history = await prisma.walletTransaction.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 50 });
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold">Wallet</h1>
-        <p className="mt-1 text-sm text-slate-500">Current balance: ₦{Number(user!.walletBalance).toLocaleString()}</p>
+        <p className="mt-1 text-sm text-slate-500">Current balance: ₦{Number(user.walletBalance).toLocaleString()}</p>
       </div>
       <WalletFundForm />
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

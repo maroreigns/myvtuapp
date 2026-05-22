@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export default async function TransactionsPage({ searchParams }: { searchParams: { status?: string; type?: string } }) {
   const user = await requireUser();
+  if (!user) redirect("/login");
+
   const transactions = await prisma.serviceTransaction.findMany({
     where: {
-      userId: user!.id,
+      userId: user.id,
       ...(searchParams.status ? { status: searchParams.status as never } : {}),
       ...(searchParams.type ? { serviceType: searchParams.type as never } : {})
     },

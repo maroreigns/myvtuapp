@@ -12,14 +12,20 @@ export type VtuPurchaseInput = {
 
 export type VtuPurchaseResponse = {
   success: boolean;
+  provider: string;
+  requestId: string;
   providerReference: string;
   message: string;
+  commission?: number;
+  totalAmount?: number;
   raw?: unknown;
 };
 
 export type VtuProvider = {
   name: string;
+  supports?(input: VtuPurchaseInput): boolean;
   purchase(input: VtuPurchaseInput): Promise<VtuPurchaseResponse>;
+  requery?(requestId: string): Promise<VtuPurchaseResponse>;
 };
 
 export type VtuDataPlan = {

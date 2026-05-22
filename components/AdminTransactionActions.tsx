@@ -15,6 +15,7 @@ export function AdminTransactionActions({ id }: { id: string }) {
   return (
     <div className="flex gap-2">
       <button onClick={() => run("retry")} className="rounded-lg border border-slate-300 px-3 py-1 text-xs">Retry</button>
+      <button onClick={() => run("requery")} className="rounded-lg border border-slate-300 px-3 py-1 text-xs">Requery</button>
       <button onClick={() => run("refund")} className="rounded-lg bg-brand-600 px-3 py-1 text-xs font-semibold text-white">Refund</button>
     </div>
   );

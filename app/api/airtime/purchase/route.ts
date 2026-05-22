@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { Prisma, ServiceType, TransactionStatus, WalletTransactionType } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
+import { detectNetwork, normalizeNigerianPhone } from "@/lib/network-detection";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { createReference } from "@/lib/reference";
@@ -10,15 +11,36 @@ import { recordWalletChange } from "@/lib/wallet";
 import { vtuService } from "@/services/vtu.service";
 import { creditReferralBonus } from "@/services/referral.service";
 
+function providerMetadata(response: Awaited<ReturnType<typeof vtuService.purchase>>) {
+  return {
+    provider: response.provider,
+    requestId: response.requestId,
+    transactionId: response.providerReference,
+    responseDescription: response.message,
+    commission: response.commission ?? null,
+    total_amount: response.totalAmount ?? null,
+    rawResponse: response.raw ?? null
+  };
+}
+
 export async function POST(request: NextRequest) {
   if (rateLimit(request, "purchase:airtime", 20, 60_000).limited) return jsonError("Too many purchase attempts", 429);
 
   const user = await requireUser(request);
   if (!user) return jsonError("Unauthorized", 401);
-  if (!user.emailVerifiedAt) return jsonError("Please verify your email before buying airtime", 403);
 
-  const body = purchaseAirtimeSchema.safeParse(await request.json());
+  const payload = await request.json();
+  if (payload && typeof payload === "object" && "phoneNumber" in payload) {
+    (payload as { phoneNumber?: unknown }).phoneNumber = normalizeNigerianPhone(String((payload as { phoneNumber?: unknown }).phoneNumber || ""));
+  }
+
+  const body = purchaseAirtimeSchema.safeParse(payload);
   if (!body.success) return jsonError(body.error.errors[0]?.message || "Invalid request", 422);
+  const normalizedPhone = body.data.phoneNumber;
+  const detectedNetwork = detectNetwork(normalizedPhone);
+  if (detectedNetwork && detectedNetwork !== body.data.network) {
+    return jsonError("This phone number does not match selected network.", 400);
+  }
 
   const reference = createReference("AIR");
   const amount = new Prisma.Decimal(body.data.amount);
@@ -44,7 +66,7 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           serviceType: ServiceType.AIRTIME,
           network: body.data.network,
-          phoneNumber: body.data.phoneNumber,
+          phoneNumber: normalizedPhone,
           amount: sellingPrice,
           status: TransactionStatus.PENDING,
           createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) }
@@ -64,7 +86,7 @@ export async function POST(request: NextRequest) {
           reference,
           status: TransactionStatus.PENDING,
           responseMessage: "Airtime purchase created",
-          metadata: { faceValue: body.data.amount }
+          metadata: { faceValue: body.data.amount, providerStatus: "PENDING" }
         }
       });
     });
@@ -77,7 +99,7 @@ export async function POST(request: NextRequest) {
     serviceType: ServiceType.AIRTIME,
     network: body.data.network,
     amount: body.data.amount,
-    phoneNumber: body.data.phoneNumber,
+    phoneNumber: normalizedPhone,
     reference
   });
 
@@ -98,7 +120,12 @@ export async function POST(request: NextRequest) {
         data: {
           status: TransactionStatus.SUCCESSFUL,
           providerReference: providerResponse.providerReference,
-          responseMessage: providerResponse.message
+          responseMessage: providerResponse.message,
+          metadata: {
+            faceValue: body.data.amount,
+            providerStatus: "SUCCESSFUL",
+            ...providerMetadata(providerResponse)
+          }
         }
       });
       await creditReferralBonus({
@@ -125,7 +152,12 @@ export async function POST(request: NextRequest) {
       data: {
         status: TransactionStatus.FAILED,
         providerReference: providerResponse.providerReference,
-        responseMessage: providerResponse.message
+        responseMessage: providerResponse.message,
+        metadata: {
+          faceValue: body.data.amount,
+          providerStatus: "FAILED",
+          ...providerMetadata(providerResponse)
+        }
       }
     });
     await tx.smsLog.create({

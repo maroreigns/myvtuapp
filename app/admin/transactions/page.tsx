@@ -2,6 +2,23 @@ import { AdminTransactionActions } from "@/components/AdminTransactionActions";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 
+function objectValue(value: unknown) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function textValue(value: unknown) {
+  return value === undefined || value === null || value === "" ? "N/A" : String(value);
+}
+
+function compactJson(value: unknown) {
+  if (!value) return "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
 export default async function AdminTransactionsPage({ searchParams }: { searchParams: { status?: string } }) {
   const transactions = await prisma.serviceTransaction.findMany({
     where: searchParams.status ? { status: searchParams.status as never } : {},
@@ -40,6 +57,8 @@ export default async function AdminTransactionsPage({ searchParams }: { searchPa
                 <th>Amount</th>
                 <th>Profit</th>
                 <th>Status</th>
+                <th>Provider</th>
+                <th>Request ID</th>
                 <th>Provider Ref</th>
                 <th>Provider Response</th>
                 <th>Actions</th>
@@ -48,7 +67,11 @@ export default async function AdminTransactionsPage({ searchParams }: { searchPa
             <tbody className="divide-y divide-slate-100">
               {transactions.map((item) => {
                 const latestLog = item.vtuLogs[0];
-                const responseText = latestLog?.error || item.responseMessage || "";
+                const metadata = objectValue(item.metadata);
+                const provider = textValue(metadata.provider || latestLog?.provider);
+                const requestId = textValue(metadata.requestId || item.reference);
+                const transactionId = textValue(metadata.transactionId || item.providerReference);
+                const responseText = latestLog?.error || compactJson(latestLog?.responsePayload) || item.responseMessage || "";
                 return (
                   <tr key={item.id}>
                     <td className="py-3 font-mono text-xs">{item.reference}</td>
@@ -58,7 +81,9 @@ export default async function AdminTransactionsPage({ searchParams }: { searchPa
                     <td>NGN {Number(item.amount).toLocaleString()}</td>
                     <td>NGN {Number(item.profit).toLocaleString()}</td>
                     <td>{item.status}</td>
-                    <td className="max-w-[160px] truncate font-mono text-xs">{item.providerReference || "N/A"}</td>
+                    <td>{provider}</td>
+                    <td className="max-w-[180px] truncate font-mono text-xs" title={requestId}>{requestId}</td>
+                    <td className="max-w-[160px] truncate font-mono text-xs" title={transactionId}>{transactionId}</td>
                     <td className="max-w-[260px] truncate" title={responseText}>{responseText || "N/A"}</td>
                     <td><AdminTransactionActions id={item.id} /></td>
                   </tr>

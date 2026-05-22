@@ -74,7 +74,8 @@ export function verifyAuthToken(token?: string): AuthUser | null {
       role: payload.role,
       fullName: payload.fullName
     };
-  } catch {
+  } catch (error) {
+    console.warn("[auth] token verification failed", { message: error instanceof Error ? error.message : "Unknown token error" });
     return null;
   }
 }
@@ -100,7 +101,17 @@ export async function requireUser(request?: NextRequest) {
     }
   });
 
-  return user?.isActive ? user : null;
+  if (!user) {
+    console.warn("[auth] session user not found", { userId: session.id });
+    return null;
+  }
+
+  if (!user.isActive) {
+    console.warn("[auth] inactive user blocked", { userId: user.id });
+    return null;
+  }
+
+  return user;
 }
 
 export async function requireAdmin(request?: NextRequest) {

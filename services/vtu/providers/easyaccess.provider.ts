@@ -157,6 +157,8 @@ function mockResponse(input: VtuPurchaseInput): VtuPurchaseResponse {
   const shouldFail = input.phoneNumber.endsWith("0000") || input.reference.includes("FAIL");
   return {
     success: !shouldFail,
+    provider: easyAccessProvider.name,
+    requestId: input.reference,
     providerReference: `EASYACCESS-TEST-${input.reference}`,
     message: shouldFail ? "EasyAccessAPI test failure simulation" : "EasyAccessAPI test purchase successful",
     raw: { testMode: true, simulatedFailure: shouldFail }
@@ -172,6 +174,8 @@ export const easyAccessProvider: VtuProvider = {
     if (!network) {
       return {
         success: false,
+        provider: this.name,
+        requestId: input.reference,
         providerReference: `EASYACCESS-${input.reference}`,
         message: "Unsupported EasyAccessAPI network"
       };
@@ -180,6 +184,8 @@ export const easyAccessProvider: VtuProvider = {
     if (input.serviceType === ServiceType.DATA && !input.providerCode) {
       return {
         success: false,
+        provider: this.name,
+        requestId: input.reference,
         providerReference: `EASYACCESS-${input.reference}`,
         message: "EasyAccessAPI data plan ID is required"
       };
@@ -206,6 +212,8 @@ export const easyAccessProvider: VtuProvider = {
 
     return {
       success,
+      provider: this.name,
+      requestId: input.reference,
       providerReference: providerReference(rawObject, `EASYACCESS-${input.reference}`),
       message: providerMessage(rawObject, success),
       raw

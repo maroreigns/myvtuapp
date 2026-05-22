@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CreditCard, Database, Phone, ReceiptText, Wallet, Zap } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { requireUser } from "@/lib/auth";
@@ -6,19 +7,21 @@ import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage() {
   const user = await requireUser();
+  if (!user) redirect("/login");
+
   const [recentTransactions, walletCount] = await Promise.all([
-    prisma.serviceTransaction.findMany({ where: { userId: user!.id }, include: { plan: true }, orderBy: { createdAt: "desc" }, take: 5 }),
-    prisma.walletTransaction.count({ where: { userId: user!.id } })
+    prisma.serviceTransaction.findMany({ where: { userId: user.id }, include: { plan: true }, orderBy: { createdAt: "desc" }, take: 5 }),
+    prisma.walletTransaction.count({ where: { userId: user.id } })
   ]);
 
   return (
     <div className="space-y-6">
       <div>
         <p className="text-sm text-slate-500">Welcome back</p>
-        <h1 className="text-2xl font-bold text-slate-950">{user!.fullName}</h1>
+        <h1 className="text-2xl font-bold text-slate-950">{user.fullName}</h1>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
-        <StatCard label="Wallet balance" value={`₦${Number(user!.walletBalance).toLocaleString()}`} icon={Wallet} />
+        <StatCard label="Wallet balance" value={`₦${Number(user.walletBalance).toLocaleString()}`} icon={Wallet} />
         <StatCard label="Recent purchases" value={String(recentTransactions.length)} icon={Database} />
         <StatCard label="Wallet records" value={String(walletCount)} icon={ReceiptText} />
       </div>

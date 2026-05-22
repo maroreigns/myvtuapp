@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
     const result = await vtuService.syncDataPlans(network || undefined);
     providerCodes = result.providerCodes;
   } catch (error) {
-    console.error("EasyAccessAPI data plan sync failed", error);
-    return jsonError(error instanceof Error ? error.message : "EasyAccess data plans could not be loaded", 502);
+    console.error("[plans] VTpass data plan sync failed", error);
+    return jsonError("Data plans could not be loaded right now. Please try again shortly.", 502);
   }
 
   const plans = await prisma.dataPlan.findMany({
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   });
 
   return jsonOk({
-    source: "easyaccess",
+    source: "vtpass",
     plans: plans.map((plan) => ({
       ...plan,
       providerCost: Number(plan.providerCost),

@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { readApiResponse } from "@/lib/client-response";
-import { NETWORKS } from "@/lib/networks";
+import { detectNetwork, normalizeNigerianPhone } from "@/lib/network-detection";
+import { NETWORKS, networkLabel } from "@/lib/networks";
 
 type Plan = { id: string; network: string; name: string; dataSize: string; validity: string; sellingPrice: number };
 type PlansResponse = { plans?: Plan[]; source?: string; message?: string | null; error?: string };
@@ -22,7 +23,16 @@ export function BuyDataForm() {
   const [notice, setNotice] = useState("");
   const [planError, setPlanError] = useState("");
   const selected = useMemo(() => currentPlans.find((plan) => plan.id === planId), [currentPlans, planId]);
-  const phoneValid = phoneRegex.test(phoneNumber);
+  const normalizedPhone = normalizeNigerianPhone(phoneNumber);
+  const phoneValid = phoneRegex.test(normalizedPhone);
+  const detectedNetwork = detectNetwork(phoneNumber);
+  const hasNetworkMismatch = Boolean(detectedNetwork && detectedNetwork !== network);
+
+  function updatePhoneNumber(value: string) {
+    setPhoneNumber(value);
+    const detected = detectNetwork(value);
+    if (detected && !phoneNumber.trim()) setNetwork(detected);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -75,13 +85,17 @@ export function BuyDataForm() {
       toast.error("Enter a valid Nigerian phone number");
       return;
     }
+    if (hasNetworkMismatch) {
+      toast.error("This phone number does not match selected network.");
+      return;
+    }
     if (!confirm(`Buy ${selected.name} for NGN ${selected.sellingPrice.toLocaleString()}?`)) return;
     setLoading(true);
     try {
       const response = await fetch("/api/data/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, phoneNumber: String(formData.get("phoneNumber")) })
+        body: JSON.stringify({ planId, phoneNumber: normalizedPhone })
       });
       const { data, error } = await readApiResponse<{ error?: string; transaction?: { status?: string } }>(response);
       if (!response.ok) {
@@ -145,12 +159,22 @@ export function BuyDataForm() {
           <input
             name="phoneNumber"
             value={phoneNumber}
-            onChange={(event) => setPhoneNumber(event.target.value.trim())}
+            onChange={(event) => updatePhoneNumber(event.target.value)}
             placeholder="08012345678"
             required
             disabled={loading}
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
           />
+          {detectedNetwork && (
+            <span className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+              Detected network: {networkLabel(detectedNetwork)}
+            </span>
+          )}
+          {hasNetworkMismatch && (
+            <p className="mt-2 text-sm font-medium text-red-600">
+              This number appears to be a {networkLabel(detectedNetwork!)} number, not {networkLabel(network)}.
+            </p>
+          )}
         </label>
       </div>
       {notice && <p className="mt-4 rounded-lg bg-sky-50 p-3 text-sm text-sky-700">{notice}</p>}
@@ -168,7 +192,7 @@ export function BuyDataForm() {
         <p className="text-sm text-slate-500">Price</p>
         <p className="text-2xl font-bold text-slate-950">NGN {selected?.sellingPrice.toLocaleString() || 0}</p>
       </div>
-      <button disabled={loading || plansLoading || !network || !planId || !phoneValid} className="mt-5 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">
+      <button disabled={loading || plansLoading || !network || !planId || !phoneValid || hasNetworkMismatch} className="mt-5 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">
         {loading ? "Processing..." : "Confirm purchase"}
       </button>
     </form>

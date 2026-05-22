@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { createReference } from "@/lib/reference";
 import { prisma } from "@/lib/prisma";
@@ -5,8 +6,10 @@ import { referralSummary } from "@/services/referral.service";
 
 export default async function ReferralsPage() {
   const user = await requireUser();
-  const referralCode = user!.referralCode || (await prisma.user.update({ where: { id: user!.id }, data: { referralCode: createReference("REF") } })).referralCode!;
-  const summary = await referralSummary(user!.id);
+  if (!user) redirect("/login");
+
+  const referralCode = user.referralCode || (await prisma.user.update({ where: { id: user.id }, data: { referralCode: createReference("REF") } })).referralCode!;
+  const summary = await referralSummary(user.id);
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   const link = `${appUrl}/register?ref=${referralCode}`;
   const total = summary.earnings.reduce((sum, item) => sum + Number(item.amount), 0);

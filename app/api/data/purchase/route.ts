@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { Prisma, ServiceType, TransactionStatus, WalletTransactionType } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
+import { detectNetwork, normalizeNigerianPhone } from "@/lib/network-detection";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { createReference } from "@/lib/reference";
@@ -10,15 +11,32 @@ import { recordWalletChange } from "@/lib/wallet";
 import { vtuService } from "@/services/vtu.service";
 import { creditReferralBonus } from "@/services/referral.service";
 
+function providerMetadata(response: Awaited<ReturnType<typeof vtuService.purchase>>) {
+  return {
+    provider: response.provider,
+    requestId: response.requestId,
+    transactionId: response.providerReference,
+    responseDescription: response.message,
+    commission: response.commission ?? null,
+    total_amount: response.totalAmount ?? null,
+    rawResponse: response.raw ?? null
+  };
+}
+
 export async function POST(request: NextRequest) {
   if (rateLimit(request, "purchase:data", 20, 60_000).limited) return jsonError("Too many purchase attempts", 429);
 
   const user = await requireUser(request);
   if (!user) return jsonError("Unauthorized", 401);
-  if (!user.emailVerifiedAt) return jsonError("Please verify your email before buying data", 403);
 
-  const body = purchaseDataSchema.safeParse(await request.json());
+  const payload = await request.json();
+  if (payload && typeof payload === "object" && "phoneNumber" in payload) {
+    (payload as { phoneNumber?: unknown }).phoneNumber = normalizeNigerianPhone(String((payload as { phoneNumber?: unknown }).phoneNumber || ""));
+  }
+
+  const body = purchaseDataSchema.safeParse(payload);
   if (!body.success) return jsonError(body.error.errors[0]?.message || "Invalid request", 422);
+  const normalizedPhone = body.data.phoneNumber;
 
   const reference = createReference("DATA");
 
@@ -27,6 +45,10 @@ export async function POST(request: NextRequest) {
     created = await prisma.$transaction(async (tx) => {
       const plan = await tx.dataPlan.findFirst({ where: { id: body.data.planId, isActive: true } });
       if (!plan) throw new Error("Selected data plan is not available");
+      const detectedNetwork = detectNetwork(normalizedPhone);
+      if (detectedNetwork && detectedNetwork !== plan.network) {
+        throw new Error("This phone number does not match selected network.");
+      }
 
       const freshUser = await tx.user.findUnique({ where: { id: user.id }, select: { walletBalance: true } });
       if (!freshUser || freshUser.walletBalance.lessThan(plan.sellingPrice)) {
@@ -38,36 +60,27 @@ export async function POST(request: NextRequest) {
           userId: user.id,
           serviceType: ServiceType.DATA,
           planId: plan.id,
-          phoneNumber: body.data.phoneNumber,
+          phoneNumber: normalizedPhone,
           status: TransactionStatus.PENDING,
           createdAt: { gte: new Date(Date.now() - 2 * 60 * 1000) }
         }
       });
       if (duplicate) throw new Error("A similar data purchase is already pending");
 
-      await recordWalletChange({
-        tx,
-        userId: user.id,
-        type: WalletTransactionType.DEBIT,
-        amount: plan.sellingPrice,
-        reference: `${reference}-DEBIT`,
-        description: `Data purchase: ${plan.name}`,
-        status: TransactionStatus.SUCCESSFUL
-      });
-
       return tx.serviceTransaction.create({
         data: {
           userId: user.id,
           serviceType: ServiceType.DATA,
           network: plan.network,
-          phoneNumber: body.data.phoneNumber,
+          phoneNumber: normalizedPhone,
           planId: plan.id,
           amount: plan.sellingPrice,
           providerCost: plan.providerCost,
           profit: plan.sellingPrice.minus(plan.providerCost),
           reference,
           status: TransactionStatus.PENDING,
-          responseMessage: "Data purchase created and wallet debited"
+          responseMessage: "Data purchase created",
+          metadata: { providerStatus: "PENDING" }
         },
         include: { plan: true }
       });
@@ -82,19 +95,33 @@ export async function POST(request: NextRequest) {
     network: created.network!,
     amount: Number(created.amount),
     providerCode: created.plan?.providerCode || "",
-    phoneNumber: body.data.phoneNumber,
+    phoneNumber: normalizedPhone,
     reference,
     maxAmountPayable: Number(created.amount)
   });
 
   const updated = await prisma.$transaction(async (tx) => {
     if (providerResponse.success) {
+      await recordWalletChange({
+        tx,
+        userId: user.id,
+        type: WalletTransactionType.DEBIT,
+        amount: new Prisma.Decimal(created.amount),
+        reference: `${reference}-DEBIT`,
+        description: `Data purchase: ${created.plan?.name || created.reference}`,
+        status: TransactionStatus.SUCCESSFUL
+      });
+
       const successful = await tx.serviceTransaction.update({
         where: { id: created.id },
         data: {
           status: TransactionStatus.SUCCESSFUL,
           providerReference: providerResponse.providerReference,
-          responseMessage: providerResponse.message
+          responseMessage: providerResponse.message,
+          metadata: {
+            providerStatus: "SUCCESSFUL",
+            ...providerMetadata(providerResponse)
+          }
         }
       });
       await creditReferralBonus({
@@ -116,22 +143,16 @@ export async function POST(request: NextRequest) {
       return successful;
     }
 
-    await recordWalletChange({
-      tx,
-      userId: user.id,
-      type: WalletTransactionType.CREDIT,
-      amount: new Prisma.Decimal(created.amount),
-      reference: `${reference}-REFUND`,
-      description: `Automatic refund for failed ${created.reference}`,
-      status: TransactionStatus.SUCCESSFUL
-    });
-
     const failed = await tx.serviceTransaction.update({
       where: { id: created.id },
       data: {
         status: TransactionStatus.FAILED,
         providerReference: providerResponse.providerReference,
-        responseMessage: providerResponse.message
+        responseMessage: providerResponse.message,
+        metadata: {
+          providerStatus: "FAILED",
+          ...providerMetadata(providerResponse)
+        }
       }
     });
     await tx.smsLog.create({
@@ -140,7 +161,7 @@ export async function POST(request: NextRequest) {
         phone: user.phone,
         provider: process.env.SMS_PROVIDER || "mock",
         status: "SENT",
-        message: `Data purchase failed and wallet was refunded. Ref: ${failed.reference}`
+        message: `Data purchase failed. Your wallet was not debited. Ref: ${failed.reference}`
       }
     });
     return failed;
