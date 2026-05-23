@@ -36,6 +36,7 @@ export const confirmPaymentSchema = z.object({
 
 export const purchaseDataSchema = z.object({
   planId: z.string().min(1),
+  network: z.nativeEnum(Network),
   phoneNumber: z.string().regex(phoneRegex, "Enter a valid Nigerian phone number")
 });
 

@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
-import { PaymentGateway, TransactionStatus, WalletTransactionType } from "@prisma/client";
+import { PaymentGateway, Prisma, TransactionStatus } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { confirmPaymentSchema } from "@/lib/validators";
-import { recordWalletChange } from "@/lib/wallet";
-import { markPaymentSuccessful } from "@/lib/payments";
+import { markPaymentFailed, markPaymentSuccessful } from "@/lib/payments";
 import { flutterwaveService } from "@/services/flutterwave.service";
 import { paystackService } from "@/services/paystack.service";
 
@@ -18,26 +17,39 @@ export async function POST(request: NextRequest) {
 
   const payment = await prisma.payment.findUnique({ where: { reference: body.data.reference } });
   if (!payment || payment.userId !== user.id) return jsonError("Payment not found", 404);
-  if (payment.status === TransactionStatus.SUCCESSFUL) return jsonError("Payment reference has already been processed", 409);
+  if (payment.status === TransactionStatus.SUCCESSFUL) return jsonOk({ alreadyProcessed: true });
 
   const verification =
     payment.gateway === PaymentGateway.PAYSTACK
       ? await paystackService.verifyPayment(payment.reference)
       : await flutterwaveService.verifyPayment(payment.reference);
 
-  if (!["success", "successful"].includes(verification.status)) {
-    await prisma.payment.update({ where: { id: payment.id }, data: { status: TransactionStatus.FAILED } });
+  const rawResponse = "raw" in verification ? (verification.raw as Prisma.InputJsonValue | null) : undefined;
+  const amountKobo = "amountKobo" in verification ? verification.amountKobo : undefined;
+  const validStatus = ["success", "successful"].includes(verification.status);
+  const validReference = verification.reference === payment.reference;
+  const validAmount =
+    payment.gateway !== PaymentGateway.PAYSTACK || amountKobo === Math.round(Number(payment.amount) * 100);
+
+  if (!validStatus || !validReference || !validAmount) {
+    await markPaymentFailed({
+      paymentId: payment.id,
+      failureReason: verification.message || "Payment verification failed",
+      gatewayReference: "gatewayReference" in verification ? verification.gatewayReference : undefined,
+      rawResponse
+    });
     return jsonError("Payment verification failed", 400);
   }
 
   const walletTransaction = await markPaymentSuccessful({
     payment,
-    amount: "amount" in verification ? verification.amount || undefined : undefined,
+    amountKobo,
     gatewayReference: "gatewayReference" in verification ? verification.gatewayReference : undefined,
-    paidAt: verification.paidAt
+    paidAt: verification.paidAt,
+    rawResponse
   });
 
-  if (!walletTransaction) return jsonError("Payment reference has already been processed", 409);
+  if (!walletTransaction) return jsonError("Payment reference could not be processed", 409);
 
   return jsonOk({ walletTransaction: { ...walletTransaction, amount: Number(walletTransaction.amount) } });
 }

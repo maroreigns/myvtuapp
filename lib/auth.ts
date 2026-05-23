@@ -84,22 +84,31 @@ export async function requireUser(request?: NextRequest) {
   const session = verifyAuthToken(readTokenFromRequest(request));
   if (!session) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.id },
-    select: {
-      id: true,
-      email: true,
-      fullName: true,
-      phone: true,
-      role: true,
-      walletBalance: true,
-      emailVerifiedAt: true,
-      isActive: true,
-      referralCode: true,
-      referralEarnings: true,
-      createdAt: true
-    }
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: session.id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        role: true,
+        walletBalance: true,
+        emailVerifiedAt: true,
+        isActive: true,
+        referralCode: true,
+        referralEarnings: true,
+        createdAt: true
+      }
+    });
+  } catch (error) {
+    console.error("[auth] database lookup failed", {
+      userId: session.id,
+      message: error instanceof Error ? error.message : "Unknown database error"
+    });
+    return null;
+  }
 
   if (!user) {
     console.warn("[auth] session user not found", { userId: session.id });

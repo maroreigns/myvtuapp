@@ -3,20 +3,25 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { sanitizeAmountInput } from "@/lib/amount-input";
 import { readApiResponse } from "@/lib/client-response";
 import { detectNetwork, normalizeNigerianPhone } from "@/lib/network-detection";
 import { NETWORKS, networkLabel } from "@/lib/networks";
+import { PurchaseSuccessModal } from "@/components/PurchaseSuccessModal";
 
 type Pricing = { network: string; discountPercent: number; isActive: boolean };
+type SuccessState = { amount: number; serviceType: string; reference: string } | null;
 
 export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
   const router = useRouter();
   const networkOptions = [...NETWORKS];
   const [network, setNetwork] = useState("MTN");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [amount, setAmount] = useState(100);
+  const [amountInput, setAmountInput] = useState("100");
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState<SuccessState>(null);
   const selected = pricing.find((item) => item.network === network) || { network, discountPercent: 0, isActive: true };
+  const amount = Number(amountInput);
   const payable = amount - amount * ((selected?.discountPercent || 0) / 100);
   const normalizedPhone = normalizeNigerianPhone(phoneNumber);
   const detectedNetwork = detectNetwork(phoneNumber);
@@ -41,7 +46,7 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
       toast.error("This phone number does not match selected network.");
       return;
     }
-    if (!amount || amount <= 0) {
+    if (!amountInput || !Number.isFinite(amount) || amount <= 0) {
       toast.error("Amount must be greater than 0");
       return;
     }
@@ -61,7 +66,14 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
           phoneNumber: normalizedPhone
         })
       });
-      const { data, error } = await readApiResponse<{ error?: string; transaction?: { status?: string } }>(response);
+      const { data, error } = await readApiResponse<{
+        error?: string;
+        success?: boolean;
+        amount?: number;
+        reference?: string;
+        message?: string;
+        transaction?: { status?: string; amount?: number; reference?: string };
+      }>(response);
       if (!response.ok) {
         toast.error(data.error || error || "Airtime purchase failed");
         return;
@@ -69,7 +81,11 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
       if (data.transaction?.status === "FAILED") {
         toast.error("Provider failed. Your wallet was not debited.");
       } else {
-        toast.success("Airtime purchase successful");
+        setSuccess({
+          amount: data.amount ?? data.transaction?.amount ?? payable,
+          serviceType: data.message || "Airtime purchase successful",
+          reference: data.reference || data.transaction?.reference || ""
+        });
       }
       router.refresh();
     } catch {
@@ -80,7 +96,8 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
   }
 
   return (
-    <form action={submit} className="max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <>
+      <form action={submit} className="max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       {networkOptions.length === 0 && (
         <div className="mb-4 rounded-lg bg-amber-50 p-4 text-sm text-amber-700">
           No airtime networks are available right now.
@@ -105,9 +122,11 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
           Amount
           <input
             required
-            value={amount}
-            onChange={(event) => setAmount(Number(event.target.value))}
-            type="number"
+            value={amountInput}
+            onChange={(event) => setAmountInput(sanitizeAmountInput(event.target.value))}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             min="1"
             disabled={loading}
             className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 disabled:bg-slate-100"
@@ -143,9 +162,18 @@ export function BuyAirtimeForm({ pricing }: { pricing: Pricing[] }) {
       {pricing.length === 0 && (
         <p className="mt-3 text-xs text-slate-500">Default airtime pricing is being used until admin pricing is configured.</p>
       )}
-      <button disabled={loading || networkOptions.length === 0 || !selected?.isActive || amount <= 0 || hasNetworkMismatch} className="mt-5 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">
+      <button disabled={loading || networkOptions.length === 0 || !selected?.isActive || !amountInput || amount <= 0 || hasNetworkMismatch} className="mt-5 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white disabled:opacity-60">
         {loading ? "Processing..." : "Confirm purchase"}
       </button>
-    </form>
+      </form>
+      <PurchaseSuccessModal
+        open={Boolean(success)}
+        amount={success?.amount || 0}
+        serviceType={success?.serviceType || "Airtime purchase successful"}
+        reference={success?.reference || ""}
+        receiptUrl={success?.reference ? `/dashboard/receipts/${success.reference}` : undefined}
+        onClose={() => setSuccess(null)}
+      />
+    </>
   );
 }

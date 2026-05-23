@@ -173,6 +173,11 @@ export async function POST(request: NextRequest) {
   });
 
   return jsonOk({
+    success: updated.status === TransactionStatus.SUCCESSFUL,
+    amount: Number(updated.amount),
+    reference: updated.reference,
+    serviceType: "AIRTIME",
+    message: updated.status === TransactionStatus.SUCCESSFUL ? "Airtime purchase successful" : updated.responseMessage || "Airtime purchase failed",
     transaction: {
       ...updated,
       amount: Number(updated.amount),

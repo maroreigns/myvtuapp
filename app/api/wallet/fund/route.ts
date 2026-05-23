@@ -2,11 +2,11 @@ import { NextRequest } from "next/server";
 import { PaymentGateway, TransactionStatus } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { jsonError, jsonOk } from "@/lib/http";
+import { markPaymentFailed, markPaymentInitialization } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { createReference } from "@/lib/reference";
 import { fundWalletSchema } from "@/lib/validators";
-import { flutterwaveService } from "@/services/flutterwave.service";
 import { paystackService } from "@/services/paystack.service";
 
 export async function POST(request: NextRequest) {
@@ -23,16 +23,32 @@ export async function POST(request: NextRequest) {
     data: {
       userId: user.id,
       amount: body.data.amount,
-      gateway: body.data.gateway,
+      gateway: PaymentGateway.PAYSTACK,
       reference,
       status: TransactionStatus.PENDING
     }
   });
 
-  const gateway =
-    body.data.gateway === PaymentGateway.PAYSTACK
-      ? await paystackService.initializePayment({ email: user.email, amount: body.data.amount, reference })
-      : await flutterwaveService.initializePayment({ email: user.email, amount: body.data.amount, reference });
+  try {
+    const gateway = await paystackService.initializePayment({ email: user.email, amount: body.data.amount, reference });
+    await markPaymentInitialization({
+      paymentId: payment.id,
+      gatewayReference: gateway.reference,
+      rawResponse: gateway.raw
+    });
 
-  return jsonOk({ payment: { ...payment, amount: Number(payment.amount) }, gateway }, 201);
+    return jsonOk({
+      payment: { ...payment, amount: Number(payment.amount), gateway: PaymentGateway.PAYSTACK },
+      gateway,
+      authorization_url: gateway.authorizationUrl
+    }, 201);
+  } catch (error) {
+    const raw = error instanceof Error ? (error as Error & { raw?: unknown }).raw : undefined;
+    await markPaymentFailed({
+      paymentId: payment.id,
+      failureReason: error instanceof Error ? error.message : "Paystack payment initialization failed",
+      rawResponse: raw === undefined ? undefined : raw
+    });
+    return jsonError(error instanceof Error ? error.message : "Paystack payment initialization failed", 502);
+  }
 }

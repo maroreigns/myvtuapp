@@ -43,8 +43,16 @@ export async function POST(request: NextRequest) {
   let created;
   try {
     created = await prisma.$transaction(async (tx) => {
-      const plan = await tx.dataPlan.findFirst({ where: { id: body.data.planId, isActive: true } });
+      const plan = await tx.dataPlan.findFirst({
+        where: {
+          isActive: true,
+          OR: [{ id: body.data.planId }, { providerCode: body.data.planId }]
+        }
+      });
       if (!plan) throw new Error("Selected data plan is not available");
+      if (plan.network !== body.data.network) {
+        throw new Error("Selected data plan does not match selected network.");
+      }
       const detectedNetwork = detectNetwork(normalizedPhone);
       if (detectedNetwork && detectedNetwork !== plan.network) {
         throw new Error("This phone number does not match selected network.");
@@ -168,6 +176,11 @@ export async function POST(request: NextRequest) {
   });
 
   return jsonOk({
+    success: updated.status === TransactionStatus.SUCCESSFUL,
+    amount: Number(updated.amount),
+    reference: updated.reference,
+    serviceType: "DATA",
+    message: updated.status === TransactionStatus.SUCCESSFUL ? "Data purchase successful" : updated.responseMessage || "Data purchase failed",
     transaction: {
       ...updated,
       amount: Number(updated.amount),

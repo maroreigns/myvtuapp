@@ -2,6 +2,25 @@ import { Network, ServiceType } from "@prisma/client";
 import { VtuDataPlan, VtuProvider, VtuPurchaseInput, VtuPurchaseResponse } from "@/services/vtu/types";
 
 const VTPASS_TIMEOUT_MS = 15_000;
+const VTPASS_PLAN_TIMEOUT_MS = 8_000;
+
+type VtpassFetchContext = {
+  endpoint: string;
+  selectedNetwork?: string | null;
+  serviceID?: string;
+  status?: number;
+  responseKeys?: string[];
+};
+
+export class VtpassDataPlanError extends Error {
+  context: VtpassFetchContext;
+
+  constructor(message: string, context: VtpassFetchContext) {
+    super(message);
+    this.name = "VtpassDataPlanError";
+    this.context = context;
+  }
+}
 
 const airtimeServiceIds: Record<Network, string> = {
   MTN: "mtn",
@@ -44,6 +63,39 @@ function authHeaders() {
   };
 }
 
+function getAuthHeaders() {
+  const apiKey = process.env.VTPASS_API_KEY;
+  const publicKey = process.env.VTPASS_PUBLIC_KEY;
+  if (!apiKey || !publicKey) throw new VtpassDataPlanError("VTpass API key and public key are not configured", { endpoint: "auth" });
+
+  // VTpass docs: GET requests authenticate with api-key and public-key headers.
+  return {
+    "Content-Type": "application/json",
+    "api-key": apiKey,
+    "public-key": publicKey
+  };
+}
+
+function safeResponseKeys(raw: unknown) {
+  return raw && typeof raw === "object" ? Object.keys(raw as Record<string, unknown>).slice(0, 20) : [];
+}
+
+function logPlanDebug(message: string, context: VtpassFetchContext) {
+  console.info("[vtpass:data-plans]", {
+    message,
+    selectedNetwork: context.selectedNetwork || null,
+    serviceID: context.serviceID || null,
+    endpoint: context.endpoint,
+    status: context.status || null,
+    responseKeys: context.responseKeys || []
+  });
+}
+
+function dataPlanError(message: string, context: VtpassFetchContext) {
+  logPlanDebug(message, context);
+  return new VtpassDataPlanError(message, context);
+}
+
 function lagosRequestId(reference: string) {
   const formatter = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Africa/Lagos",
@@ -83,22 +135,32 @@ async function postToVtpass(path: "/api/pay" | "/api/requery", payload: Record<s
   }
 }
 
-async function getFromVtpass(path: string) {
+async function getFromVtpass(path: string, context: Omit<VtpassFetchContext, "endpoint" | "status" | "responseKeys"> = {}, timeoutMs = VTPASS_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), VTPASS_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const endpoint = `${configuredBaseUrl()}${path}`;
 
   try {
-    const response = await fetch(`${configuredBaseUrl()}${path}`, {
+    const response = await fetch(endpoint, {
       method: "GET",
-      headers: authHeaders(),
+      headers: getAuthHeaders(),
       signal: controller.signal,
       cache: "no-store"
     });
     const raw = await parseResponse(response);
+    logPlanDebug("VTpass GET completed", {
+      ...context,
+      endpoint,
+      status: response.status,
+      responseKeys: safeResponseKeys(raw)
+    });
     return { response, raw };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("VTpass data plan request timed out after 15 seconds");
+      throw dataPlanError(`VTpass data plan request timed out after ${Math.round(timeoutMs / 1000)} seconds`, {
+        ...context,
+        endpoint
+      });
     }
     throw error;
   } finally {
@@ -201,6 +263,22 @@ function normalizeVariation(serviceID: string, item: Record<string, unknown>): V
   };
 }
 
+function serviceIdFromItem(item: Record<string, unknown>) {
+  return stringValue(item.serviceID || item.serviceId || item.service_id || item.identifier || item.id);
+}
+
+function providerMessage(raw: Record<string, unknown>, fallback: string) {
+  return stringValue(raw.response_description || raw.message || raw.error || fallback);
+}
+
+function uniquePlansByProviderCode(plans: VtuDataPlan[]) {
+  const unique = new Map<string, VtuDataPlan>();
+  plans.forEach((plan) => {
+    if (!unique.has(plan.providerCode)) unique.set(plan.providerCode, plan);
+  });
+  return Array.from(unique.values());
+}
+
 export const vtpassProvider: VtuProvider = {
   name: "vtpass",
   supports(input) {
@@ -275,32 +353,82 @@ export async function fetchVtpassDataPlans(network?: Network | string | null): P
     : (Object.keys(dataServiceIds) as Network[]);
 
   const allowedServiceIds = new Set(selectedNetworks.flatMap((item) => dataServiceIds[item]));
-  const servicesResponse = await getFromVtpass("/api/services?identifier=data");
+  const servicesResponse = await getFromVtpass(
+    "/api/services?identifier=data",
+    { selectedNetwork: network },
+    VTPASS_PLAN_TIMEOUT_MS
+  );
   if (!servicesResponse.response.ok) {
-    throw new Error("VTpass data services could not be loaded right now");
+    throw dataPlanError("VTpass data services could not be loaded right now", {
+      selectedNetwork: network,
+      endpoint: `${configuredBaseUrl()}/api/services?identifier=data`,
+      status: servicesResponse.response.status,
+      responseKeys: safeResponseKeys(servicesResponse.raw)
+    });
   }
 
   const servicesRaw = servicesResponse.raw as Record<string, unknown>;
   const serviceItems = Array.isArray(servicesRaw.content) ? servicesRaw.content as Array<Record<string, unknown>> : [];
+  if (!Array.isArray(servicesRaw.content)) {
+    throw dataPlanError("VTpass returned a bad response format for data services", {
+      selectedNetwork: network,
+      endpoint: `${configuredBaseUrl()}/api/services?identifier=data`,
+      status: servicesResponse.response.status,
+      responseKeys: safeResponseKeys(servicesRaw)
+    });
+  }
+
   const serviceIds = serviceItems
-    .map((item) => stringValue(item.serviceID))
+    .map((item) => serviceIdFromItem(item))
     .filter((serviceID) => allowedServiceIds.has(serviceID));
 
-  if (serviceIds.length === 0) return [];
+  logPlanDebug("Resolved VTpass data service IDs", {
+    selectedNetwork: network,
+    serviceID: serviceIds.join(",") || undefined,
+    endpoint: `${configuredBaseUrl()}/api/services?identifier=data`,
+    status: servicesResponse.response.status,
+    responseKeys: safeResponseKeys(servicesRaw)
+  });
+
+  if (serviceIds.length === 0) {
+    throw dataPlanError("VTpass data service was not found for the selected network", {
+      selectedNetwork: network,
+      endpoint: `${configuredBaseUrl()}/api/services?identifier=data`,
+      status: servicesResponse.response.status,
+      responseKeys: safeResponseKeys(servicesRaw)
+    });
+  }
 
   const plans = await Promise.all(serviceIds.map(async (serviceID) => {
-    const { response, raw } = await getFromVtpass(`/api/service-variations?serviceID=${encodeURIComponent(serviceID)}`);
+    const path = `/api/service-variations?serviceID=${encodeURIComponent(serviceID)}`;
+    const { response, raw } = await getFromVtpass(path, { selectedNetwork: network, serviceID }, VTPASS_PLAN_TIMEOUT_MS);
     if (!response.ok) {
-      throw new Error("VTpass data plans could not be loaded right now");
+      throw dataPlanError(providerMessage(raw as Record<string, unknown>, "VTpass data plans could not be loaded right now"), {
+        selectedNetwork: network,
+        serviceID,
+        endpoint: `${configuredBaseUrl()}${path}`,
+        status: response.status,
+        responseKeys: safeResponseKeys(raw)
+      });
     }
 
     const rawObject = raw as Record<string, unknown>;
     const content = rawObject.content && typeof rawObject.content === "object" ? rawObject.content as Record<string, unknown> : {};
     const variations = Array.isArray(content.variations) ? content.variations : [];
+    if (!Array.isArray(content.variations)) {
+      throw dataPlanError("VTpass returned a bad response format for data plan variations", {
+        selectedNetwork: network,
+        serviceID,
+        endpoint: `${configuredBaseUrl()}${path}`,
+        status: response.status,
+        responseKeys: safeResponseKeys(rawObject)
+      });
+    }
+
     return variations
       .map((item) => normalizeVariation(serviceID, item as Record<string, unknown>))
       .filter((plan): plan is VtuDataPlan => Boolean(plan));
   }));
 
-  return plans.flat();
+  return uniquePlansByProviderCode(plans.flat());
 }

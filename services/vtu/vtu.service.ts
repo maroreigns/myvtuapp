@@ -99,11 +99,22 @@ export const vtuService = {
 
   async syncDataPlans(network?: string) {
     const plans = await fetchVtpassDataPlans(network);
-    if (plans.length === 0) return { synced: 0, providerCodes: [] };
+    if (plans.length === 0) return { synced: 0, providerCodes: [], plans: [], cacheError: null };
 
-    await upsertPlans(plans);
+    let cacheError: string | null = null;
+    try {
+      await upsertPlans(plans);
+    } catch (error) {
+      cacheError = error instanceof Error ? error.message : "Data plans could not be cached";
+      console.error("[data-plans] VTpass plans fetched but cache save failed", { reason: cacheError });
+    }
 
-    return { synced: plans.length, providerCodes: plans.map((plan) => plan.providerCode) };
+    return {
+      synced: plans.length,
+      providerCodes: plans.map((plan) => plan.providerCode),
+      plans,
+      cacheError
+    };
   },
 
   async requery(input: { serviceTransactionId: string; provider: string; requestId: string }) {
