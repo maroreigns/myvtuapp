@@ -148,15 +148,17 @@ export default function HomePage() {
                   key={service.title}
                   className="group flex min-h-[330px] flex-col rounded-lg border border-slate-200 bg-white p-8 shadow-sm transition duration-200 hover:-translate-y-2 hover:border-brand-100 hover:shadow-soft"
                 >
-                  <div className="grid h-16 w-16 place-items-center rounded-lg bg-sky-50 text-ocean-600 ring-1 ring-sky-100 transition group-hover:bg-brand-50 group-hover:text-brand-700">
-                    <Icon className="h-9 w-9" />
+                  <div className="mx-auto mb-4 flex items-center justify-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-sky-50 text-ocean-600 ring-1 ring-sky-100 transition group-hover:bg-brand-50 group-hover:text-brand-700">
+                      <Icon className="h-9 w-9" />
+                    </div>
                   </div>
-                  <h3 className="mt-7 text-2xl font-bold text-slate-950">{service.title}</h3>
-                  <p className="mt-4 flex-1 text-base leading-7 text-slate-600">{service.description}</p>
+                  <h3 className="mb-4 text-center text-2xl font-bold text-slate-950">{service.title}</h3>
+                  <p className="mb-8 flex-1 text-center text-base leading-7 text-slate-600">{service.description}</p>
                   {service.href ? (
                     <Link
                       href={service.href}
-                      className="mt-8 inline-flex h-12 items-center justify-center rounded-lg border border-ocean-600 px-6 text-sm font-bold text-ocean-700 transition duration-200 hover:border-brand-600 hover:bg-brand-600 hover:text-white"
+                      className="mt-auto inline-flex h-12 items-center justify-center rounded-lg border border-ocean-600 px-6 text-sm font-bold text-ocean-700 transition duration-200 hover:border-brand-600 hover:bg-brand-600 hover:text-white"
                     >
                       {service.button}
                     </Link>
@@ -164,7 +166,7 @@ export default function HomePage() {
                     <button
                       type="button"
                       disabled
-                      className="mt-8 inline-flex h-12 cursor-not-allowed items-center justify-center rounded-lg border border-slate-300 px-6 text-sm font-bold text-slate-400"
+                      className="mt-auto inline-flex h-12 cursor-not-allowed items-center justify-center rounded-lg border border-slate-300 px-6 text-sm font-bold text-slate-400"
                     >
                       {service.button}
                     </button>
@@ -226,7 +228,7 @@ export default function HomePage() {
             <h2 className="text-base font-bold text-white">Contact Us</h2>
             <div className="mt-4 space-y-3 text-sm leading-6">
               <p><span className="block font-semibold text-slate-200">Address:</span>Lagos, Nigeria</p>
-              <p><span className="block font-semibold text-slate-200">Phone (WhatsApp):</span>+234 XXX XXX XXXX</p>
+              <p><span className="block font-semibold text-slate-200">Phone (WhatsApp):</span>+234 812 875 5117</p>
               <p><span className="block font-semibold text-slate-200">Email:</span>support@obmapay.com</p>
             </div>
           </div>
