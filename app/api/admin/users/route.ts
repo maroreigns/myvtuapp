@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
           ]
         }
       : {},
-    select: { id: true, fullName: true, email: true, phone: true, role: true, walletBalance: true, createdAt: true },
+    select: { id: true, fullName: true, email: true, phone: true, role: true, walletBalance: true, isActive: true, createdAt: true },
     orderBy: { createdAt: "desc" },
     take: 100
   });

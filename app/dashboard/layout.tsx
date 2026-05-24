@@ -8,5 +8,5 @@ export default async function UserDashboardLayout({ children }: { children: Reac
   const user = await requireUser();
   if (!user) redirect("/login");
 
-  return <DashboardShell role="USER">{children}</DashboardShell>;
+  return <DashboardShell>{children}</DashboardShell>;
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { TransactionStatus, WalletTransactionType } from "@prisma/client";
 import { requireAdmin } from "@/lib/auth";
+import { summarizeProviderResponse } from "@/lib/admin";
 import { jsonError, jsonOk } from "@/lib/http";
 import { prisma } from "@/lib/prisma";
 import { transactionStatusSchema } from "@/lib/validators";
@@ -15,6 +16,28 @@ function textValue(value: unknown) {
   return value === undefined || value === null ? "" : String(value);
 }
 
+function transactionPayload(transaction: {
+  id: string;
+  reference: string;
+  providerReference: string | null;
+  status: TransactionStatus;
+  amount: unknown;
+  providerCost?: unknown;
+  profit?: unknown;
+  responseMessage: string | null;
+}) {
+  return {
+    id: transaction.id,
+    reference: transaction.reference,
+    providerReference: transaction.providerReference,
+    status: transaction.status,
+    amount: Number(transaction.amount),
+    providerCost: transaction.providerCost === undefined ? undefined : Number(transaction.providerCost),
+    profit: transaction.profit === undefined ? undefined : Number(transaction.profit),
+    responseSummary: summarizeProviderResponse(transaction.responseMessage)
+  };
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const admin = await requireAdmin(request);
   if (!admin) return jsonError("Admin access required", 403);
@@ -27,14 +50,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     data: { status: body.data.status }
   });
 
-  return jsonOk({
-    transaction: {
-      ...transaction,
-      amount: Number(transaction.amount),
-      providerCost: Number(transaction.providerCost),
-      profit: Number(transaction.profit)
-    }
-  });
+  return jsonOk({ transaction: transactionPayload(transaction) });
 }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -68,7 +84,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       });
     });
 
-    return jsonOk({ transaction: { ...refunded, amount: Number(refunded.amount) } });
+    return jsonOk({ transaction: transactionPayload(refunded) });
   }
 
   if (action === "retry") {
@@ -90,7 +106,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         responseMessage: response.message
       }
     });
-    return jsonOk({ transaction: { ...updated, amount: Number(updated.amount) } });
+    return jsonOk({ transaction: transactionPayload(updated) });
   }
 
   if (action === "requery") {
@@ -144,7 +160,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       });
     });
 
-    return jsonOk({ transaction: { ...updated, amount: Number(updated.amount) } });
+    return jsonOk({ transaction: transactionPayload(updated) });
   }
 
   return jsonError("Unsupported admin transaction action", 400);

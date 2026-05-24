@@ -1,4 +1,4 @@
-import { Network, PaymentGateway, RechargeCardStatus, TransactionStatus, WalletTransactionType } from "@prisma/client";
+import { Network, PaymentGateway, RechargeCardStatus, Role, TransactionStatus, WalletTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 const phoneRegex = /^(070|080|081|090|091|071)\d{8}$/;
@@ -85,6 +85,11 @@ export const verifyEmailSchema = z.object({
 export const userStatusSchema = z.object({
   userId: z.string().min(1),
   isActive: z.boolean()
+});
+
+export const userRoleSchema = z.object({
+  userId: z.string().min(1),
+  role: z.nativeEnum(Role)
 });
 
 export const airtimePricingSchema = z.object({

@@ -124,7 +124,18 @@ export async function requireUser(request?: NextRequest) {
 }
 
 export async function requireAdmin(request?: NextRequest) {
+  const token = readTokenFromRequest(request);
+  const session = verifyAuthToken(token);
   const user = await requireUser(request);
-  if (!user || user.role !== Role.ADMIN) return null;
+  const allowed = user?.role === "ADMIN";
+  console.info("[admin-auth] access check", {
+    tokenEmail: session?.email || null,
+    userEmail: user?.email || null,
+    expectedEmail: "maroobaro1990@gmail.com",
+    expectedEmailMatched: user?.email === "maroobaro1990@gmail.com",
+    userRole: user?.role || null,
+    allowed
+  });
+  if (!user || !allowed) return null;
   return user;
 }

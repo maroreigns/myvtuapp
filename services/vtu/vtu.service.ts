@@ -1,16 +1,10 @@
 import { TransactionStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { easyAccessProvider } from "@/services/vtu/providers/easyaccess.provider";
-import { mockVtuProvider } from "@/services/vtu/providers/mock.provider";
-import { liveVtuProvider } from "@/services/vtu/providers/live.provider";
 import { fetchVtpassDataPlans, vtpassProvider } from "@/services/vtu/providers/vtpass.provider";
 import { VtuDataPlan, VtuProvider, VtuPurchaseInput, VtuPurchaseResponse } from "@/services/vtu/types";
 
 const providers: Record<string, VtuProvider> = {
-  easyaccess: easyAccessProvider,
-  vtpass: vtpassProvider,
-  mock: mockVtuProvider,
-  live: liveVtuProvider
+  vtpass: vtpassProvider
 };
 
 function providerByName(name?: string | null) {
@@ -18,16 +12,35 @@ function providerByName(name?: string | null) {
   return providers[name.toLowerCase()] || null;
 }
 
-function configuredProviders(input: VtuPurchaseInput) {
-  const legacyMode = process.env.VTU_PROVIDER_MODE;
-  const primaryName = process.env.VTU_PROVIDER_PRIMARY || legacyMode || "mock";
-  const fallbackName = process.env.VTU_PROVIDER_FALLBACK || (primaryName === "easyaccess" ? "mock" : "easyaccess");
-  const selected = [providerByName(primaryName), providerByName(fallbackName)]
-    .filter((item): item is VtuProvider => Boolean(item))
-    .filter((item, index, list) => list.findIndex((candidate) => candidate.name === item.name) === index)
-    .filter((item) => !item.supports || item.supports(input));
+function configuredProvider(input: VtuPurchaseInput) {
+  const primaryName = (process.env.VTU_PROVIDER_PRIMARY || "vtpass").toLowerCase();
+  const fallbackName = process.env.VTU_PROVIDER_FALLBACK || null;
 
-  return selected.length > 0 ? selected : [mockVtuProvider];
+  if (primaryName !== "vtpass") {
+    console.warn("[vtu] unsupported provider ignored", {
+      configuredPrimary: primaryName,
+      providerSelected: "vtpass",
+      fallbackEnabled: false
+    });
+  }
+
+  if (fallbackName) {
+    console.info("[vtu] fallback provider ignored", {
+      configuredFallback: fallbackName,
+      providerSelected: "vtpass",
+      fallbackEnabled: false
+    });
+  }
+
+  console.info("[vtu] provider selected", {
+    provider: "vtpass",
+    fallbackEnabled: false,
+    serviceType: input.serviceType,
+    reference: input.reference
+  });
+
+  if (vtpassProvider.supports && !vtpassProvider.supports(input)) return null;
+  return vtpassProvider;
 }
 
 function requestPayload(input: VtuPurchaseInput) {
@@ -67,23 +80,23 @@ function failedResponse(provider: VtuProvider, input: VtuPurchaseInput, message:
 
 export const vtuService = {
   async purchase(input: VtuPurchaseInput & { serviceTransactionId?: string }) {
-    let lastResponse: VtuPurchaseResponse | null = null;
-
-    for (const selectedProvider of configuredProviders(input)) {
-      try {
-        const response = await selectedProvider.purchase(input);
-        await logProviderAttempt(input, selectedProvider, response);
-        lastResponse = response;
-        if (response.success) return response;
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "VTU provider request failed";
-        const response = failedResponse(selectedProvider, input, message);
-        await logProviderAttempt(input, selectedProvider, response, message);
-        lastResponse = response;
-      }
+    const selectedProvider = configuredProvider(input);
+    if (!selectedProvider) {
+      const response = failedResponse(vtpassProvider, input, "VTpass does not support this request");
+      await logProviderAttempt(input, vtpassProvider, response, response.message);
+      return response;
     }
 
-    return lastResponse || failedResponse(mockVtuProvider, input, "No VTU provider is available for this request");
+    try {
+      const response = await selectedProvider.purchase(input);
+      await logProviderAttempt(input, selectedProvider, response);
+      return response;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "VTpass provider request failed";
+      const response = failedResponse(selectedProvider, input, message);
+      await logProviderAttempt(input, selectedProvider, response, message);
+      return response;
+    }
   },
 
   async buyData(input: { providerCode: string; phoneNumber: string; reference: string }) {
@@ -118,15 +131,15 @@ export const vtuService = {
   },
 
   async requery(input: { serviceTransactionId: string; provider: string; requestId: string }) {
-    const selectedProvider = providerByName(input.provider);
+    const selectedProvider = providerByName("vtpass");
     if (!selectedProvider?.requery) {
-      return failedResponse(selectedProvider || mockVtuProvider, {
+      return failedResponse(vtpassProvider, {
         serviceType: "AIRTIME",
         network: "MTN",
         phoneNumber: "",
         amount: 0,
         reference: input.requestId
-      }, "Selected VTU provider does not support requery");
+      }, "VTpass provider does not support requery");
     }
 
     try {

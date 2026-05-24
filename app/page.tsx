@@ -6,58 +6,46 @@ import { BrandWordmark, Logo } from "@/components/Logo";
 const serviceCards: Array<{
   title: string;
   description: string;
-  button: string;
   icon: LucideIcon;
-  href?: string;
 }> = [
   {
     title: "Airtime",
     description: "Buy affordable airtime instantly for MTN, Airtel, Glo and 9mobile.",
-    button: "Buy Airtime",
-    icon: Phone,
-    href: "/dashboard/buy-airtime"
+    icon: Phone
   },
   {
     title: "Data",
     description: "Buy and resell cheap data bundles for all Nigerian networks from one secure wallet.",
-    button: "Buy Data",
-    icon: Database,
-    href: "/dashboard/buy-data"
+    icon: Database
   },
   {
     title: "Cable TV",
     description: "Subscribe to DStv, GOtv and StarTimes quickly with instant activation.",
-    button: "Coming Soon",
     icon: Cable
   },
   {
     title: "Electricity",
     description: "Pay prepaid and postpaid electricity bills from your secure wallet.",
-    button: "Coming Soon",
     icon: Lightbulb
   },
   {
     title: "Betting Funding",
     description: "Fund betting wallets easily and securely when this service becomes available.",
-    button: "Coming Soon",
     icon: Wallet
   },
   {
     title: "Exam Pins",
     description: "Buy WAEC, NECO and other digital exam pins directly from your wallet.",
-    button: "Coming Soon",
     icon: Ticket
   },
   {
     title: "Bulk SMS",
     description: "Send promotional and transactional SMS to customers at affordable rates.",
-    button: "Coming Soon",
     icon: MessageSquareText
   },
   {
     title: "Airtime to Cash",
     description: "Convert excess airtime to wallet balance when this service becomes available.",
-    button: "Coming Soon",
     icon: RefreshCcw
   }
 ];
@@ -92,7 +80,7 @@ export default function HomePage() {
             Login
           </Link>
           <Link href="/register" className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-700">
-            Get started
+            Get Started
           </Link>
         </nav>
       </header>
@@ -109,10 +97,10 @@ export default function HomePage() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/register" className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-5 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-md">
-                Start buying <ArrowRight className="h-4 w-4" />
+                Get Started <ArrowRight className="h-4 w-4" />
               </Link>
               <Link href="/login" className="rounded-lg border border-slate-300 bg-white px-5 py-3 font-semibold text-slate-700 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-200 hover:text-brand-700 hover:shadow-md">
-                Open dashboard
+                Login
               </Link>
             </div>
           </div>
@@ -155,22 +143,6 @@ export default function HomePage() {
                   </div>
                   <h3 className="mb-4 text-center text-2xl font-bold text-slate-950">{service.title}</h3>
                   <p className="mb-8 flex-1 text-center text-base leading-7 text-slate-600">{service.description}</p>
-                  {service.href ? (
-                    <Link
-                      href={service.href}
-                      className="mt-auto inline-flex h-12 items-center justify-center rounded-lg border border-ocean-600 px-6 text-sm font-bold text-ocean-700 transition duration-200 hover:border-brand-600 hover:bg-brand-600 hover:text-white"
-                    >
-                      {service.button}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled
-                      className="mt-auto inline-flex h-12 cursor-not-allowed items-center justify-center rounded-lg border border-slate-300 px-6 text-sm font-bold text-slate-400"
-                    >
-                      {service.button}
-                    </button>
-                  )}
                 </article>
               );
             })}
@@ -242,9 +214,9 @@ export default function HomePage() {
             <h2 className="text-base font-bold text-white">Resources</h2>
             <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
               {resources.map((item) => (
-                <Link key={item} href={item === "Track Order" ? "/dashboard/transactions" : "/login"} className="transition hover:text-white">
+                <a key={item} href="#" className="transition hover:text-white">
                   {item}
-                </Link>
+                </a>
               ))}
             </div>
           </div>

@@ -46,7 +46,7 @@ export function AuthForm({ mode, referralCode = "" }: { mode: "login" | "registe
       if (mode === "register" && !data.signedIn) {
         router.push("/login");
       } else {
-        router.push(mode === "login" ? "/dashboard" : data.user?.role === "ADMIN" ? "/admin" : "/dashboard");
+        router.push(data.user?.role === "ADMIN" ? "/admin" : "/dashboard");
       }
       router.refresh();
     } catch {
